@@ -27,8 +27,6 @@ class Main {
   public static void main(String[] args) {
     final ActorSystem<?> actorSystem = ActorSystem.create(Main.create(), "cluster");
     startClusterBootstrap(actorSystem);
-
-    ClusterListenerActor.create();
   }
 
   private static void startClusterBootstrap(ActorSystem<?> actorSystem) {
