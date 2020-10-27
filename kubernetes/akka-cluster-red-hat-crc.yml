@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: akka-k8-visualizer
-          image: akka-k8-visualizer:latest
+          image: mckeeh3/akka-k8-visualizer:latest
           imagePullPolicy: Always
           readinessProbe:
             httpGet:
