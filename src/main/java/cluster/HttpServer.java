@@ -11,13 +11,22 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import org.slf4j.Logger;
+import akka.NotUsed;
 import akka.actor.typed.ActorSystem;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
+import akka.cluster.typed.Cluster;
+import akka.cluster.typed.Leave;
 import akka.http.javadsl.Http;
 import akka.http.javadsl.marshallers.jackson.Jackson;
+import akka.http.javadsl.model.ContentTypes;
+import akka.http.javadsl.model.MediaTypes;
 import akka.http.javadsl.model.StatusCodes;
+import akka.http.javadsl.model.ws.Message;
+import akka.http.javadsl.model.ws.TextMessage;
 import akka.http.javadsl.server.Route;
+import akka.japi.JavaPartialFunction;
+import akka.stream.javadsl.Flow;
 import cluster.EntityActor.Value;
 import cluster.EntityCommand.ChangeValueAck;
 import cluster.EntityCommand.GetValueAck;
@@ -47,7 +56,14 @@ class HttpServer {
   private Route route() {
     return concat(
         path("entity-change", this::handleEntityChange),
-        path("entity-query", this::handleEntityQuery)
+        path("entity-query", this::handleEntityQuery),
+        path("", () -> getFromResource("viewer.html", ContentTypes.TEXT_HTML_UTF8)),
+        path("viewer", () -> getFromResource("viewer.html", ContentTypes.TEXT_HTML_UTF8)),
+        path("viewer.html", () -> getFromResource("viewer.html", ContentTypes.TEXT_HTML_UTF8)),
+        path("viewer.js", () -> getFromResource("viewer.js", ContentTypes.APPLICATION_JSON)),
+        path("d3.v5.js", () -> getFromResource("d3.v5.js", MediaTypes.APPLICATION_JAVASCRIPT.toContentTypeWithMissingCharset())),
+        path("viewer-entities", () -> handleWebSocketMessages(handleClientMessages())),
+        path("favicon.ico", () -> getFromResource("favicon.ico", MediaTypes.IMAGE_X_ICON.toContentType()))
     );
   }
 
@@ -56,7 +72,6 @@ class HttpServer {
         () -> entity(
             Jackson.unmarshaller(EntityCommand.ChangeValue.class),
             changeValue -> {
-              log().debug("POST {}", changeValue);
               EntityActor.Id id = new EntityActor.Id(changeValue.id);
               EntityActor.Value value = new EntityActor.Value(changeValue.value);
               return onSuccess(submitChangeValue(new EntityActor.ChangeValue(id, value, null)),
@@ -75,7 +90,6 @@ class HttpServer {
     return entityRef.ask(changeValue::replyTo, Duration.ofSeconds(30))
         .handle((reply, e) -> {
           if (reply != null) {
-            log().info("change value reply {}", reply);
             return new EntityActor.ChangeValueAck("changed", changeValue.id, changeValue.value);
           } else {
             return new EntityActor.ChangeValueAck(e.getMessage(), changeValue.id, changeValue.value);
@@ -88,11 +102,10 @@ class HttpServer {
         () -> entity(
             Jackson.unmarshaller(EntityCommand.GetValue.class),
             getValue -> {
-              log().debug("POST {}", getValue);
               EntityActor.Id id = new EntityActor.Id(getValue.id);
               return onSuccess(submitGetValue(new EntityActor.GetValue(id, null)),
                   getValueAck -> {
-                    GetValueAck ack = new GetValueAck(id.id, getValueAck.value.value, getValue.nsStart, "TODO", StatusCodes.ACCEPTED.intValue());
+                    GetValueAck ack = new GetValueAck(id.id, getValueAck.value.value, getValue.nsStart, "success", StatusCodes.ACCEPTED.intValue());
                     return complete(StatusCodes.ACCEPTED, ack, Jackson.marshaller());
                   });
             }
@@ -106,12 +119,54 @@ class HttpServer {
     return entityRef.ask(getValue::replyTo, Duration.ofSeconds(30))
         .handle((reply, e) -> {
           if (reply != null) {
-            log().info("get value reply {}", reply);
-            return new EntityActor.GetValueAck(getValue.id, new Value(reply));
+            return new EntityActor.GetValueAck(getValue.id, 
+              new Value(reply instanceof EntityActor.GetValueAck 
+                ? ((EntityActor.GetValueAck) reply).value.value
+                : "Not found"));
           } else {
             return new EntityActor.GetValueAck(getValue.id, new Value(e.getMessage()));
           }
         });
+  }
+
+  private Flow<Message, Message, NotUsed> handleClientMessages() {
+    return Flow.<Message>create().collect(new JavaPartialFunction<Message, Message>() {
+      @Override
+      public Message apply(Message message, boolean isCheck) {
+        if (isCheck && message.isText()) {
+          return null;
+        } else if (isCheck && !message.isText()) {
+          throw noMatch();
+        } else if (message.asTextMessage().isStrict()) {
+          return handleClientMessage(message);
+        } else {
+          return TextMessage.create("");
+        }
+      }
+    });
+  }
+
+  private Message handleClientMessage(Message message) {
+    String messageText = message.asTextMessage().getStrictText();
+    if (messageText.startsWith("akka://")) {
+      handleStopNode(messageText);
+    }
+    return getTreeAsJson();
+  }
+
+  private void handleStopNode(String memberAddress) {
+    log().info("Stop node {}", memberAddress);
+    final Cluster cluster = Cluster.get(actorSystem);
+    cluster.state().getMembers().forEach(member -> {
+      if (memberAddress.equals(member.address().toString())) {
+        cluster.manager().tell(Leave.create(member.address()));
+      }
+    });
+  }
+
+  private Message getTreeAsJson() {
+    tree.setMemberType(Cluster.get(actorSystem).selfMember().address().toString(), "httpServer");
+    return TextMessage.create(tree.toJson());
   }
 
   void load(EntityAction action) {

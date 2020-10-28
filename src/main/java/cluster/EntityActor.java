@@ -57,6 +57,7 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
       log().info("update {} {} -> {}", state.id, state.value, changeValue.value);
       state.value = changeValue.value;
       changeValue.replyTo.tell(new ChangeValueAck("update", changeValue.id, changeValue.value));
+      notifyHttpServer("ping");
     }
     return this;
   }
@@ -69,6 +70,7 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
       notifyHttpServer("start");
     } else {
       getValue.replyTo.tell(new GetValueAck(state.id, state.value));
+      notifyHttpServer("ping");
     }
     return this;
   }
@@ -204,11 +206,11 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
     }
   }
 
-  static class Id implements CborSerializable {
-    final String id;
+  public static class Id implements CborSerializable {
+    public final String id;
 
     @JsonCreator
-    Id(String id) {
+    public Id(String id) {
       this.id = id;
     }
 
@@ -218,11 +220,11 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
     }
   }
 
-  static class Value implements CborSerializable {
-    final Object value;
+  public static class Value implements CborSerializable {
+    public final Object value;
 
     @JsonCreator
-    Value(Object value) {
+    public Value(Object value) {
       this.value = value;
     }
 
