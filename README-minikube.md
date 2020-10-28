@@ -109,3 +109,37 @@ visualizer-7b97f445bb-5dnks   1/1     Running   0          32s
 visualizer-7b97f445bb-hsht5   1/1     Running   0          32s
 visualizer-7b97f445bb-qvbb8   1/1     Running   0          32s
 ~~~
+
+#### Enable External Access
+
+Create a load balancer to enable access to the WOE Twin microservice HTTP endpoint.
+
+~~~bash
+$ kubectl expose deployment visualizer --type=LoadBalancer --name=visualizer-service
+~~~
+~~~
+service/visualizer-service exposed
+~~~
+
+Next, view to external port assignments.
+
+~~~bash
+$ kubectl get services visualizer-service                                           
+~~~
+~~~
+NAME                 TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)                                        AGE
+visualizer-service   LoadBalancer   10.106.120.247   <pending>     2552:31942/TCP,8558:31810/TCP,8080:32075/TCP   2m44s
+~~~
+
+Note that in this example, the Kubernetes internal port 8080 external port assignment of 32075.
+
+For MiniKube deployments, the full URL to access the HTTP endpoint is constructed using the MiniKube IP and the external port.
+
+~~~bash
+$ minikube ip       
+~~~
+In this example the MiniKube IP is:
+~~~
+192.168.99.105
+~~~
+Try accessing this endpoint using the curl command or from a browser. Use the external port defined for port 8080. In the example above the external port for port 8080 is 32075.

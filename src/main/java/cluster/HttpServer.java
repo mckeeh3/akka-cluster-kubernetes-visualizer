@@ -19,6 +19,8 @@ import akka.http.javadsl.marshallers.jackson.Jackson;
 import akka.http.javadsl.model.StatusCodes;
 import akka.http.javadsl.server.Route;
 import cluster.EntityActor.Value;
+import cluster.EntityCommand.ChangeValueAck;
+import cluster.EntityCommand.GetValueAck;
 import static akka.http.javadsl.server.Directives.*;
 
 class HttpServer {
@@ -52,11 +54,16 @@ class HttpServer {
   private Route handleEntityChange() {
     return post(
         () -> entity(
-            Jackson.unmarshaller(EntityActor.ChangeValue.class),
+            Jackson.unmarshaller(EntityCommand.ChangeValue.class),
             changeValue -> {
               log().debug("POST {}", changeValue);
-              return onSuccess(submitChangeValue(changeValue),
-                  changeValueAck -> complete(StatusCodes.ACCEPTED, changeValueAck, Jackson.marshaller()));
+              EntityActor.Id id = new EntityActor.Id(changeValue.id);
+              EntityActor.Value value = new EntityActor.Value(changeValue.value);
+              return onSuccess(submitChangeValue(new EntityActor.ChangeValue(id, value, null)),
+                  changeValueAck -> {
+                    final ChangeValueAck ack = new ChangeValueAck(id.id, value.value, changeValue.nsStart, changeValueAck.action, StatusCodes.ACCEPTED.intValue());
+                    return complete(StatusCodes.ACCEPTED, ack, Jackson.marshaller());
+                  });
             }
         )
     );
@@ -79,11 +86,15 @@ class HttpServer {
   private Route handleEntityQuery() {
     return post(
         () -> entity(
-            Jackson.unmarshaller(EntityActor.GetValue.class),
+            Jackson.unmarshaller(EntityCommand.GetValue.class),
             getValue -> {
               log().debug("POST {}", getValue);
-              return onSuccess(submitGetValue(getValue),
-                  telemetryResponse -> complete(StatusCodes.ACCEPTED, telemetryResponse, Jackson.marshaller()));
+              EntityActor.Id id = new EntityActor.Id(getValue.id);
+              return onSuccess(submitGetValue(new EntityActor.GetValue(id, null)),
+                  getValueAck -> {
+                    GetValueAck ack = new GetValueAck(id.id, getValueAck.value.value, getValue.nsStart, "TODO", StatusCodes.ACCEPTED.intValue());
+                    return complete(StatusCodes.ACCEPTED, ack, Jackson.marshaller());
+                  });
             }
         )
     );

@@ -22,6 +22,7 @@ class Main {
 
   private static void bootstrap(final ActorContext<Void> context) {
     context.spawn(ClusterListenerActor.create(), "clusterListener");
+    context.spawn(HttpServerActor.create(), "httpServerActor");
   }
 
   public static void main(String[] args) {
