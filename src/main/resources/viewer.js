@@ -139,11 +139,11 @@ function updateCropCircle(hierarchy) {
   nodeEnter.filter(d => d.data.type.includes('member'))
     .append('text')
     .attr('dy', '0.31em')
-    .attr('x', '-6')
     .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
     .attr('cursor', 'pointer')
+    .attr('text-anchor', 'middle')
     .on('click', clickCircle)
-    .style('font-size', 24)
+    .style('font-size', 22)
     .style('fill', '#FFF')
     .style('opacity', 1)
     .text(memberNumber);
