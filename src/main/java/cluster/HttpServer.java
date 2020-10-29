@@ -5,14 +5,22 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import org.slf4j.Logger;
 import akka.NotUsed;
+import akka.actor.Address;
 import akka.actor.typed.ActorSystem;
+import akka.cluster.ClusterEvent;
+import akka.cluster.Member;
+import akka.cluster.MemberStatus;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
 import akka.cluster.typed.Cluster;
@@ -165,8 +173,31 @@ class HttpServer {
   }
 
   private Message getTreeAsJson() {
+    clearInactiveNodesFromTree();
     tree.setMemberType(Cluster.get(actorSystem).selfMember().address().toString(), "httpServer");
     return TextMessage.create(tree.toJson());
+  }
+  
+  private void clearInactiveNodesFromTree() {
+    final Cluster cluster = Cluster.get(actorSystem);
+    final ClusterEvent.CurrentClusterState clusterState = cluster.state();
+
+    final Set<Member> unreachable = clusterState.getUnreachable();
+
+    List<String> members = StreamSupport.stream(clusterState.getMembers().spliterator(), false)
+        .filter(member -> member.status().equals(MemberStatus.up()))
+        .filter(member -> !(unreachable.contains(member)))
+        .map(member -> member.address().toString())
+        .collect(Collectors.toList());
+
+    log().info("=Members current {}", members);
+    log().info("=Members tree {}", tree.children);
+
+    final int count = tree.children.size();
+    tree.children.removeIf(node -> !members.contains(node.name));
+    if (count != tree.children.size()) {
+      log().info("Removed {} members from tree", count - tree.children.size());
+    }
   }
 
   void load(EntityAction action) {
@@ -354,13 +385,7 @@ class HttpServer {
 
     @Override
     public String toString() {
-      return String.format(
-        "%s[%s, %s, %d]",
-        getClass().getSimpleName(),
-        name,
-        type,
-        events
-      );
+      return String.format("%s[%s, %s, %d]", getClass().getSimpleName(), name, type, events);
     }
   }
 

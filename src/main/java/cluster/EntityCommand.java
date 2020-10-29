@@ -15,7 +15,7 @@ public interface EntityCommand extends CborSerializable {
     public ChangeValue(
       @JsonProperty("id") String id, 
       @JsonProperty("value") Object value, 
-      @JsonProperty("nsstart") long nsStart) { 
+      @JsonProperty("nsStart") long nsStart) { 
       this.id = id;
       this.value = value;
       this.nsStart = nsStart;
@@ -38,7 +38,7 @@ public interface EntityCommand extends CborSerializable {
     public ChangeValueAck(
       @JsonProperty("id") String id, 
       @JsonProperty("value") Object value, 
-      @JsonProperty("nsstart") long nsStart, 
+      @JsonProperty("nsStart") long nsStart, 
       @JsonProperty("message") String message, 
       @JsonProperty("httpStatusCode") int httpStatusCode) {
       this.id = id;
@@ -50,7 +50,8 @@ public interface EntityCommand extends CborSerializable {
 
     @Override
     public String toString() {
-      return String.format("%s[%,d, %s, %s, %s, %d]", getClass().getSimpleName(), nsStart, id, value, message, httpStatusCode);
+      final long responseTime = System.nanoTime() - nsStart;
+      return String.format("%s[%,dns, %s, %s, %s, %d]", getClass().getSimpleName(), responseTime, id, value, message, httpStatusCode);
     }
   }
 
@@ -68,7 +69,7 @@ public interface EntityCommand extends CborSerializable {
 
     @Override
     public String toString() {
-      return String.format("%s[%,d, %s]", getClass().getSimpleName(), nsStart, id);
+      return String.format("%s[%s]", getClass().getSimpleName(), id);
     }
   }
 
@@ -83,7 +84,7 @@ public interface EntityCommand extends CborSerializable {
     public GetValueAck(
       @JsonProperty("id") String id, 
       @JsonProperty("value") Object value, 
-      @JsonProperty("nsstart") long nsStart, 
+      @JsonProperty("nsStart") long nsStart, 
       @JsonProperty("message") String message, 
       @JsonProperty("httpStatusCode") int httpStatusCode) {
       this.id = id;
@@ -95,7 +96,8 @@ public interface EntityCommand extends CborSerializable {
 
     @Override
     public String toString() {
-      return String.format("%s[%,d, %s, %s, %s, %d]", getClass().getSimpleName(), nsStart, id, value, message, httpStatusCode);
+      final long responseTime = System.nanoTime() - nsStart;
+      return String.format("%s[%,dns, %s, %s, %s, %d]", getClass().getSimpleName(), responseTime, id, value, message, httpStatusCode);
     }
   }
 
