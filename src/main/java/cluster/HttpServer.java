@@ -93,6 +93,7 @@ class HttpServer {
   }
 
   private CompletionStage<EntityActor.ChangeValueAck> submitChangeValue(EntityActor.ChangeValue changeValue) {
+    log().info("{}", changeValue);
     String entityId = changeValue.id.id;
     EntityRef<EntityActor.Command> entityRef = clusterSharding.entityRefFor(EntityActor.entityTypeKey, entityId);
     return entityRef.ask(changeValue::replyTo, Duration.ofSeconds(30))
@@ -122,6 +123,7 @@ class HttpServer {
   }
 
   private CompletionStage<EntityActor.GetValueAck> submitGetValue(EntityActor.GetValue getValue) {
+    log().info("{}", getValue);
     String entityId = getValue.id.id;
     EntityRef<EntityActor.Command> entityRef = clusterSharding.entityRefFor(EntityActor.entityTypeKey, entityId);
     return entityRef.ask(getValue::replyTo, Duration.ofSeconds(30))
