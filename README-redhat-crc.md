@@ -136,20 +136,23 @@ Next, view to external port assignments.
 $ kubectl get services visualizer-service                                           
 ~~~
 ~~~
-NAME                 TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)                                        AGE
-visualizer-service   LoadBalancer   10.106.120.247   <pending>     2552:31942/TCP,8558:31810/TCP,8080:32075/TCP   2m44s
+NAME                         TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)                                        AGE
+service/visualizer-service   LoadBalancer   172.25.134.107   <pending>     2552:31672/TCP,8558:31661/TCP,8080:30359/TCP   7s
 ~~~
 
-Note that in this example, the Kubernetes internal port 8080 external port assignment of 32075.
+Note that in this example, the Kubernetes internal port 8080 external port assignment of 30359.
 
-For MiniKube deployments, the full URL to access the HTTP endpoint is constructed using the MiniKube IP and the external port.
+For CRC deployments, the full URL to access the HTTP endpoint is constructed using the CRC IP and the external port.
 
 ~~~bash
 $ crc ip       
 ~~~
-In this example the MiniKube IP is:
+In this example the CRC IP is:
 ~~~
-192.168.99.105
+192.168.64.3
 ~~~
-Try accessing this endpoint using the curl command or from a browser. Use the external port defined for port 8080. In the example above the external port for port 8080 is 32075.
+Try accessing this endpoint using the curl command or from a browser. Use the external port defined for port 8080. In the example above the external port for port 8080 is 30359.
+
+From a browser use the IP and port to create a URL to the cluster sharding viewer: `http://192.168.64.3:30359`
+
 
