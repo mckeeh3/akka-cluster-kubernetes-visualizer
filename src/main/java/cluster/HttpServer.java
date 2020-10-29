@@ -1,5 +1,13 @@
 package cluster;
 
+import static akka.http.javadsl.server.Directives.complete;
+import static akka.http.javadsl.server.Directives.concat;
+import static akka.http.javadsl.server.Directives.entity;
+import static akka.http.javadsl.server.Directives.getFromResource;
+import static akka.http.javadsl.server.Directives.handleWebSocketMessages;
+import static akka.http.javadsl.server.Directives.onSuccess;
+import static akka.http.javadsl.server.Directives.path;
+import static akka.http.javadsl.server.Directives.post;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -8,7 +16,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -16,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import org.slf4j.Logger;
 import akka.NotUsed;
-import akka.actor.Address;
 import akka.actor.typed.ActorSystem;
 import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
@@ -38,7 +44,6 @@ import akka.stream.javadsl.Flow;
 import cluster.EntityActor.Value;
 import cluster.EntityCommand.ChangeValueAck;
 import cluster.EntityCommand.GetValueAck;
-import static akka.http.javadsl.server.Directives.*;
 
 class HttpServer {
   private final ActorSystem<?> actorSystem;
@@ -93,7 +98,6 @@ class HttpServer {
   }
 
   private CompletionStage<EntityActor.ChangeValueAck> submitChangeValue(EntityActor.ChangeValue changeValue) {
-    log().info("{}", changeValue);
     String entityId = changeValue.id.id;
     EntityRef<EntityActor.Command> entityRef = clusterSharding.entityRefFor(EntityActor.entityTypeKey, entityId);
     return entityRef.ask(changeValue::replyTo, Duration.ofSeconds(30))
@@ -123,7 +127,6 @@ class HttpServer {
   }
 
   private CompletionStage<EntityActor.GetValueAck> submitGetValue(EntityActor.GetValue getValue) {
-    log().info("{}", getValue);
     String entityId = getValue.id.id;
     EntityRef<EntityActor.Command> entityRef = clusterSharding.entityRefFor(EntityActor.entityTypeKey, entityId);
     return entityRef.ask(getValue::replyTo, Duration.ofSeconds(30))
@@ -191,9 +194,6 @@ class HttpServer {
         .filter(member -> !(unreachable.contains(member)))
         .map(member -> member.address().toString())
         .collect(Collectors.toList());
-
-    log().info("=Members current {}", members);
-    log().info("=Members tree {}", tree.children);
 
     final int count = tree.children.size();
     tree.children.removeIf(node -> !members.contains(node.name));
