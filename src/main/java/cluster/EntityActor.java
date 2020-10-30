@@ -40,10 +40,10 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
   @Override
   public Receive<Command> createReceive() {
     return newReceiveBuilder()
-    .onMessage(ChangeValue.class, this::onChangeValue)
-    .onMessage(GetValue.class, this::onGetValue)
-    .onMessage(Passivate.class, msg -> onPassivate())
-    .build();
+      .onMessage(ChangeValue.class, this::onChangeValue)
+      .onMessage(GetValue.class, this::onGetValue)
+      .onMessage(Passivate.class, msg -> onPassivate())
+      .build();
   }
   
   private Behavior<Command> onChangeValue(ChangeValue changeValue) {
@@ -52,12 +52,12 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
       log().info("initialize {}", state);
 
       changeValue.replyTo.tell(new ChangeValueAck("initialize", changeValue.id, changeValue.value));
-      notifyHttpServer("start");
+      notifyHttpServer("start", changeValue.httpClient, changeValue.httpServer);
     } else {
       log().info("update {} {} -> {}", state.id, state.value, changeValue.value);
       state.value = changeValue.value;
       changeValue.replyTo.tell(new ChangeValueAck("update", changeValue.id, changeValue.value));
-      notifyHttpServer("ping");
+      notifyHttpServer("ping", changeValue.httpClient, changeValue.httpServer);
     }
     return this;
   }
@@ -67,22 +67,22 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
     if (state == null) {
       getValue.replyTo.tell(new GetValueAckNotFound(getValue.id));
       state = new State(getValue.id, new Value(""));
-      notifyHttpServer("start");
+      notifyHttpServer("start", getValue.httpClient, getValue.httpServer);
     } else {
       getValue.replyTo.tell(new GetValueAck(state.id, state.value));
-      notifyHttpServer("ping");
+      notifyHttpServer("ping", getValue.httpClient, getValue.httpServer);
     }
     return this;
   }
 
   private Behavior<Command> onPassivate() {
     log().info("Stop {}", entityId);
-    notifyHttpServer("stop");
+    notifyHttpServer("stop", null, null);
     return Behaviors.stopped();
   }
 
-  private void notifyHttpServer(String action) {
-    final EntityAction entityAction = new EntityAction(memberId, shardId, entityId, action);
+  private void notifyHttpServer(String action, IpId.Client httpClient, IpId.Server httpServer) {
+    final EntityAction entityAction = new EntityAction(memberId, shardId, entityId, action, httpClient, httpServer);
     final BroadcastEntityAction broadcastEntityAction = new BroadcastEntityAction(entityAction);
     httpServerActorRef.tell(broadcastEntityAction);
   }
@@ -101,21 +101,25 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
     public final Id id;
     public final Value value;
     public final ActorRef<Command> replyTo;
+    public final IpId.Client httpClient;
+    public final IpId.Server httpServer;
 
     @JsonCreator
-    public ChangeValue(Id id, Value value, ActorRef<Command> replyTo) {
+    public ChangeValue(Id id, Value value, ActorRef<Command> replyTo, IpId.Client httpClient, IpId.Server httpServer) {
       this.id = id;
       this.value = value;
       this.replyTo = replyTo;
+      this.httpClient = httpClient;
+      this.httpServer = httpServer;
     }
 
     ChangeValue replyTo(ActorRef<Command> replyTo) {
-      return new ChangeValue(id, value, replyTo);
+      return new ChangeValue(id, value, replyTo, httpClient, httpServer);
     }
 
     @Override
     public String toString() {
-      return String.format("%s[%s, %s]", getClass().getSimpleName(), id, value);
+      return String.format("%s[%s, %s, %s, %s]", getClass().getSimpleName(), id, value, httpClient, httpServer);
     }
   }
 
@@ -140,20 +144,24 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
   public static class GetValue implements Command {
     public final Id id;
     public final ActorRef<Command> replyTo;
+    public final IpId.Client httpClient;
+    public final IpId.Server httpServer;
 
     @JsonCreator
-    public GetValue(Id id, ActorRef<Command> replyTo) {
+    public GetValue(Id id, ActorRef<Command> replyTo, IpId.Client httpClient, IpId.Server httpServer) {
       this.id = id;
       this.replyTo = replyTo;
+      this.httpClient = httpClient;
+      this.httpServer = httpServer;
     }
 
     GetValue replyTo(ActorRef<Command> replyTo) {
-      return new GetValue(id, replyTo);
+      return new GetValue(id, replyTo, httpClient, httpServer);
     }
 
     @Override
     public String toString() {
-      return String.format("%s[%s]", getClass().getSimpleName(), id);
+      return String.format("%s[%s, %s, %s]", getClass().getSimpleName(), id, httpClient, httpServer);
     }
   }
 

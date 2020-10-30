@@ -48,6 +48,7 @@ import cluster.EntityCommand.GetValueAck;
 class HttpServer {
   private final ActorSystem<?> actorSystem;
   private final ClusterSharding clusterSharding;
+  private final IpId.Server httpServer;
   private final Tree tree = new Tree("cluster", "cluster");
 
   static HttpServer start(String host, int port, ActorSystem<?> actorSystem) {
@@ -57,6 +58,7 @@ class HttpServer {
   private HttpServer(String host, int port, ActorSystem<?> actorSystem) {
     this.actorSystem = actorSystem;
     clusterSharding = ClusterSharding.get(actorSystem);
+    httpServer = IpId.Server.of(actorSystem);
 
     start(host, port);
   }
@@ -87,7 +89,7 @@ class HttpServer {
             changeValue -> {
               EntityActor.Id id = new EntityActor.Id(changeValue.id);
               EntityActor.Value value = new EntityActor.Value(changeValue.value);
-              return onSuccess(submitChangeValue(new EntityActor.ChangeValue(id, value, null)),
+              return onSuccess(submitChangeValue(new EntityActor.ChangeValue(id, value, null, changeValue.httpClient, httpServer)),
                   changeValueAck -> {
                     final ChangeValueAck ack = new ChangeValueAck(id.id, value.value, changeValue.nsStart, changeValueAck.action, StatusCodes.ACCEPTED.intValue());
                     return complete(StatusCodes.ACCEPTED, ack, Jackson.marshaller());
@@ -116,7 +118,7 @@ class HttpServer {
             Jackson.unmarshaller(EntityCommand.GetValue.class),
             getValue -> {
               EntityActor.Id id = new EntityActor.Id(getValue.id);
-              return onSuccess(submitGetValue(new EntityActor.GetValue(id, null)),
+              return onSuccess(submitGetValue(new EntityActor.GetValue(id, null, getValue.httpClient, httpServer)),
                   getValueAck -> {
                     GetValueAck ack = new GetValueAck(id.id, getValueAck.value.value, getValue.nsStart, "success", StatusCodes.ACCEPTED.intValue());
                     return complete(StatusCodes.ACCEPTED, ack, Jackson.marshaller());
@@ -217,18 +219,22 @@ class HttpServer {
     final String shardId;
     final String entityId;
     final String action;
+    final IpId.Client httpClient;
+    final IpId.Server httpServer;
 
     @JsonCreator
-    EntityAction(String member, String shardId, String entityId, String action) {
+    EntityAction(String member, String shardId, String entityId, String action, IpId.Client httpClient, IpId.Server httpServer) {
       this.member = member;
       this.shardId = shardId;
       this.entityId = entityId;
       this.action = action;
+      this.httpClient = httpClient;
+      this.httpServer = httpServer;
     }
 
     @Override
     public String toString() {
-      return String.format("%s[%s, %s, %s, %s]", getClass().getSimpleName(), member, shardId, entityId, action);
+      return String.format("%s[%s, %s, %s, %s, %s, %s]", getClass().getSimpleName(), member, shardId, entityId, action, httpClient, httpServer);
     }
   }
   
