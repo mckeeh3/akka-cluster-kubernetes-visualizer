@@ -12,7 +12,10 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
@@ -44,17 +47,19 @@ import akka.stream.javadsl.Flow;
 import cluster.EntityActor.Value;
 import cluster.EntityCommand.ChangeValueAck;
 import cluster.EntityCommand.GetValueAck;
+import cluster.IpId.Client;
 
 class HttpServer {
   private final ActorSystem<?> actorSystem;
   private final ClusterSharding clusterSharding;
   private final IpId.Server httpServer;
   private final Tree tree = new Tree("cluster", "cluster");
+  private final ActivitySummary activitySummary = new ActivitySummary();
 
   static HttpServer start(String host, int port, ActorSystem<?> actorSystem) {
     return new HttpServer(host, port, actorSystem);
-  } 
- 
+  }
+
   private HttpServer(String host, int port, ActorSystem<?> actorSystem) {
     this.actorSystem = actorSystem;
     clusterSharding = ClusterSharding.get(actorSystem);
@@ -120,7 +125,7 @@ class HttpServer {
               EntityActor.Id id = new EntityActor.Id(getValue.id);
               return onSuccess(submitGetValue(new EntityActor.GetValue(id, null, getValue.httpClient, httpServer)),
                   getValueAck -> {
-                    GetValueAck ack = new GetValueAck(id.id, getValueAck.value.value, getValue.nsStart, "success", StatusCodes.ACCEPTED.intValue());
+                    final GetValueAck ack = new GetValueAck(id.id, getValueAck.value.value, getValue.nsStart, "success", StatusCodes.ACCEPTED.intValue());
                     return complete(StatusCodes.ACCEPTED, ack, Jackson.marshaller());
                   });
             }
@@ -134,8 +139,7 @@ class HttpServer {
     return entityRef.ask(getValue::replyTo, Duration.ofSeconds(30))
         .handle((reply, e) -> {
           if (reply != null) {
-            return new EntityActor.GetValueAck(getValue.id, 
-              new Value(reply instanceof EntityActor.GetValueAck 
+            return new EntityActor.GetValueAck(getValue.id, new Value(reply instanceof EntityActor.GetValueAck
                 ? ((EntityActor.GetValueAck) reply).value.value
                 : "Not found"));
           } else {
@@ -166,6 +170,7 @@ class HttpServer {
     if (messageText.startsWith("akka://")) {
       handleStopNode(messageText);
     }
+    log().info("{}", activitySummary);
     return getTreeAsJson();
   }
 
@@ -184,7 +189,7 @@ class HttpServer {
     tree.setMemberType(Cluster.get(actorSystem).selfMember().address().toString(), "httpServer");
     return TextMessage.create(tree.toJson());
   }
-  
+
   private void clearInactiveNodesFromTree() {
     final Cluster cluster = Cluster.get(actorSystem);
     final ClusterEvent.CurrentClusterState clusterState = cluster.state();
@@ -194,8 +199,7 @@ class HttpServer {
     List<String> members = StreamSupport.stream(clusterState.getMembers().spliterator(), false)
         .filter(member -> member.status().equals(MemberStatus.up()))
         .filter(member -> !(unreachable.contains(member)))
-        .map(member -> member.address().toString())
-        .collect(Collectors.toList());
+        .map(member -> member.address().toString()).collect(Collectors.toList());
 
     final int count = tree.children.size();
     tree.children.removeIf(node -> !members.contains(node.name));
@@ -204,11 +208,18 @@ class HttpServer {
     }
   }
 
-  void load(EntityAction action) {
-    if ("start".equals(action.action)) {
-      tree.add(action.member, action.shardId, action.entityId);
-    } else if ("stop".equals(action.action)) {
-      tree.remove(action.member, action.shardId, action.entityId);
+  void load(EntityAction entityAction) {
+    switch (entityAction.action) {
+      case "start":
+        tree.add(entityAction.member, entityAction.shardId, entityAction.entityId);
+        activitySummary.load(entityAction);
+        break;
+      case "ping":
+        activitySummary.load(entityAction);
+        break;
+      case "stop":
+        tree.remove(entityAction.member, entityAction.shardId, entityAction.entityId);
+        break;
     }
   }
 
@@ -237,7 +248,7 @@ class HttpServer {
       return String.format("%s[%s, %s, %s, %s, %s, %s]", getClass().getSimpleName(), member, shardId, entityId, action, httpClient, httpServer);
     }
   }
-  
+
   public static class Tree implements Serializable {
     private static final long serialVersionUID = 1L;
     public final String name;
@@ -345,17 +356,15 @@ class HttpServer {
     }
 
     void setMemberType(String memberId, String type) {
-      children.forEach(
-        child -> {
-          if (child.name.equals(memberId)) {
-            if (!child.type.contains(type)) {
-              child.type = child.type + " " + type;
-            }
-          } else if (child.type.contains(type)) {
-            unsetMemberType(child.name, type);
+      children.forEach(child -> {
+        if (child.name.equals(memberId)) {
+          if (!child.type.contains(type)) {
+            child.type = child.type + " " + type;
           }
+        } else if (child.type.contains(type)) {
+          unsetMemberType(child.name, type);
         }
-      );
+      });
     }
 
     void unsetMemberType(String memberId, String type) {
@@ -394,6 +403,150 @@ class HttpServer {
     @Override
     public String toString() {
       return String.format("%s[%s, %s, %d]", getClass().getSimpleName(), name, type, events);
+    }
+  }
+
+  private static final long activityIdleLimitNs = 10 * 1000 * 1000000; // 10s in ns = 10 s * 1,000 ms/s  * 1,000,000 ns/ms
+
+  public static class ActivitySummary implements Serializable {
+    private static final long serialVersionUID = 1L;
+    final ClientActivitySummary clientActivitySummary = new ClientActivitySummary();
+    final ServerActivitySummary serverActivitySummary = new ServerActivitySummary();
+
+    void load(EntityAction entityAction) {
+      clientActivitySummary.load(entityAction.httpClient);
+      serverActivitySummary.load(entityAction.httpServer);
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%s[%s, %s]", getClass().getSimpleName(), clientActivitySummary.activity(), serverActivitySummary.activity());
+    }
+  }
+
+  public static class ClientActivitySummary implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private final Map<IpId.Client, ClientActivity> clientActivities = new HashMap<>();
+
+    void load(IpId.Client client) {
+      clientActivities.put(client, clientActivities.getOrDefault(client, new ClientActivity(client)).increment());
+    }
+
+    Collection<ClientActivity> activity() {
+      clientActivities.entrySet().removeIf(c -> System.nanoTime() - c.getValue().lastAccessed > activityIdleLimitNs);
+      return clientActivities.values();
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%s[%s]", getClass().getSimpleName(), clientActivities);
+    }
+
+    public static class ClientActivity implements Serializable {
+      private static final long serialVersionUID = 1L;
+      public final IpId.Client client;
+      public int messageCount;
+      public long lastAccessed;
+
+      public ClientActivity(Client client) {
+        this.client = client;
+        messageCount = 0;
+        lastAccessed = 0;
+      }
+
+      ClientActivity increment() {
+        messageCount++;
+        lastAccessed = System.nanoTime();
+        return this;
+      }
+
+      @Override
+      public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((client == null) ? 0 : client.hashCode());
+        return result;
+      }
+
+      @Override
+      public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null) return false;
+        if (getClass() != obj.getClass()) return false;
+        ClientActivity other = (ClientActivity) obj;
+        if (client == null) {
+          if (other.client != null) return false;
+        } else if (!client.equals(other.client)) return false;
+        return true;
+      }
+
+      @Override
+      public String toString() {
+        return String.format("%s[%s, %,d, %,dns]", getClass().getSimpleName(), client, messageCount, lastAccessed);
+      }
+    }
+  }
+
+  public static class ServerActivitySummary implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private Map<IpId.Server, ServerActivity> serverActivities = new HashMap<>();
+
+    void load(IpId.Server server) {
+      serverActivities.put(server, serverActivities.getOrDefault(server, new ServerActivity(server)).increment());
+    }
+
+    Collection<ServerActivity> activity() {
+      serverActivities.entrySet().removeIf(s -> System.nanoTime() - s.getValue().lastAccessed > activityIdleLimitNs);
+      return serverActivities.values();
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%s[%s]", getClass().getSimpleName(), serverActivities);
+    }
+
+    public static class ServerActivity implements Serializable {
+      private static final long serialVersionUID = 1L;
+      public final IpId.Server server;
+      public int messageCount;
+      public long lastAccessed;
+
+      public ServerActivity(IpId.Server server) {
+        this.server = server;
+        messageCount = 0;
+        lastAccessed = 0;
+      }
+
+      ServerActivity increment() {
+        messageCount++;
+        lastAccessed = System.nanoTime();
+        return this;
+      }
+
+      @Override
+      public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((server == null) ? 0 : server.hashCode());
+        return result;
+      }
+
+      @Override
+      public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null) return false;
+        if (getClass() != obj.getClass()) return false;
+        ServerActivity other = (ServerActivity) obj;
+        if (server == null) {
+          if (other.server != null) return false;
+        } else if (!server.equals(other.server)) return false;
+        return true;
+      }
+
+      @Override
+      public String toString() {
+        return String.format("%s[%s, %,d, %,dns]", getClass().getSimpleName(), server, messageCount, lastAccessed);
+      }
     }
   }
 
