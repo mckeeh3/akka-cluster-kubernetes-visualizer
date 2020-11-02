@@ -5,7 +5,7 @@ function sendWebSocketRequest(request) {
     webSocket.send(request);
   } else {
     webSocket = new WebSocket('ws://' + location.host + '/viewer-entities');
-    update({ 'name': 'cluster', 'type': 'cluster' });
+    update({ 'activitySummary': {}, 'tree': { 'name': 'cluster', 'type': 'cluster' }});
 
     webSocket.onopen = function(event) {
       console.log('WebSocket connected', event);
@@ -62,9 +62,15 @@ const gNode = g.append('g')
 sendWebSocketRequest();
 setInterval(sendWebSocketRequest, 5000);
 
-function update(hierarchy) {
+function update(data) {
   //updateClusterView(hierarchy);
-  updateCropCircle(hierarchy);
+  if (data.clientActivities && data.clientActivities.length > 0) {
+    updateHttpClientView(data.clientActivities);
+  }
+  if (data.serverActivities && data.serverActivities.length > 0) {
+    updateHttpServerView(data.serverActivities);
+  }
+  updateCropCircle(data.tree);
 }
 
 function updateCropCircle(hierarchy) {
@@ -189,6 +195,14 @@ function updateCropCircle(hierarchy) {
   node.exit()
     .transition(t1)
     .remove();
+}
+
+function updateHttpClientView(data) {
+  console.log(data);
+}
+
+function updateHttpServerView(data) {
+  console.log(data);
 }
 
 function updateClusterView(hierarchy) {

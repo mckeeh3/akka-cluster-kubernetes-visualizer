@@ -45,11 +45,12 @@ import akka.http.javadsl.model.ws.Message;
 import akka.http.javadsl.model.ws.TextMessage;
 import akka.http.javadsl.server.Route;
 import akka.japi.JavaPartialFunction;
-import akka.remote.transport.netty.ClientHandler;
 import akka.stream.javadsl.Flow;
 import cluster.EntityActor.Value;
 import cluster.EntityCommand.ChangeValueAck;
 import cluster.EntityCommand.GetValueAck;
+import cluster.HttpServer.ClientActivitySummary.ClientActivity;
+import cluster.HttpServer.ServerActivitySummary.ServerActivity;
 import cluster.IpId.Client;
 import cluster.IpId.Server;
 
@@ -176,7 +177,7 @@ class HttpServer {
       handleStopNode(messageText);
     }
     log().info("{}", activitySummary);
-    return getTreeAsJson();
+    return responseAsJson();
   }
 
   private void handleStopNode(String memberAddress) {
@@ -189,10 +190,11 @@ class HttpServer {
     });
   }
 
-  private Message getTreeAsJson() {
+  private Message responseAsJson() {
     clearInactiveNodesFromTree();
     tree.setMemberType(Cluster.get(actorSystem).selfMember().address().toString(), "httpServer");
-    return TextMessage.create(tree.toJson());
+    final ClientResponse clientResponse = new ClientResponse(tree, activitySummary);
+    return TextMessage.create(clientResponse.toJson());
   }
 
   private void clearInactiveNodesFromTree() {
@@ -396,15 +398,6 @@ class HttpServer {
       }
     }
 
-    String toJson() {
-      ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
-      try {
-        return ow.writeValueAsString(this);
-      } catch (JsonProcessingException e) {
-        return String.format("{ \"error\" : \"%s\" }", e.getMessage());
-      }
-    }
-
     @Override
     public String toString() {
       return String.format("%s[%s, %s, %d]", getClass().getSimpleName(), name, type, events);
@@ -415,8 +408,8 @@ class HttpServer {
 
   public static class ActivitySummary implements Serializable {
     private static final long serialVersionUID = 1L;
-    final ClientActivitySummary clientActivitySummary = new ClientActivitySummary();
-    final ServerActivitySummary serverActivitySummary = new ServerActivitySummary();
+    public final ClientActivitySummary clientActivitySummary = new ClientActivitySummary();
+    public final ServerActivitySummary serverActivitySummary = new ServerActivitySummary();
 
     void load(EntityAction entityAction) {
       clientActivitySummary.load(entityAction);
@@ -431,21 +424,11 @@ class HttpServer {
 
   public static class ClientActivitySummary implements Serializable {
     private static final long serialVersionUID = 1L;
-    private final Map<IpId.Client, ClientActivity> clientActivities = new HashMap<>();
-    private final Map<IpId.Client, Queue<Link>> links = new HashMap<>();
+    public final Map<IpId.Client, ClientActivity> clientActivities = new HashMap<>();
 
     void load(EntityAction entityAction) {
       final Client client = entityAction.httpClient;
-      clientActivities.put(client, clientActivities.getOrDefault(client, new ClientActivity(client)).increment(entityAction));
-
-      links.put(client, links.getOrDefault(client, new LinkedList<>()));
-      final Link link = new Link(entityAction.entityId, entityAction.httpClient, entityAction.httpServer);
-      final Queue<Link> clientLinks = links.get(client);
-      clientLinks.offer(link);
-
-      while (clientLinks.size() > 50) {
-        clientLinks.poll();
-      }
+      clientActivities.put(client, clientActivities.getOrDefault(client, new ClientActivity(client)).load(entityAction));
     }
 
     Collection<ClientActivity> activity() {
@@ -463,6 +446,7 @@ class HttpServer {
       public final IpId.Client client;
       public int messageCount;
       public long lastAccessedNs;
+      public Queue<Link> links = new LinkedList<>();
 
       public ClientActivity(Client client) {
         this.client = client;
@@ -470,9 +454,14 @@ class HttpServer {
         lastAccessedNs = 0;
       }
 
-      ClientActivity increment(EntityAction entityAction) {
+      ClientActivity load(EntityAction entityAction) {
         messageCount++;
         lastAccessedNs = System.nanoTime();
+
+        links.offer(new Link(entityAction.entityId, entityAction.httpClient, entityAction.httpServer));
+        while (links.size() > 50) {
+          links.poll();
+        }
         return this;
       }
 
@@ -505,21 +494,11 @@ class HttpServer {
 
   public static class ServerActivitySummary implements Serializable {
     private static final long serialVersionUID = 1L;
-    private Map<IpId.Server, ServerActivity> serverActivities = new HashMap<>();
-    private final Map<IpId.Server, Queue<Link>> links = new HashMap<>();
+    public final Map<IpId.Server, ServerActivity> serverActivities = new HashMap<>();
 
     void load(EntityAction entityAction) {
       final Server server = entityAction.httpServer;
-      serverActivities.put(server, serverActivities.getOrDefault(server, new ServerActivity(server)) .increment(entityAction));
-
-      links.put(server, links.getOrDefault(server, new LinkedList<>()));
-      final Link link = new Link(entityAction.entityId, entityAction.httpClient, entityAction.httpServer);
-      final Queue<Link> serverLinks = links.get(server);
-      serverLinks.offer(link);
-
-      while (serverLinks.size() > 50) {
-        serverLinks.poll();
-      }
+      serverActivities.put(server, serverActivities.getOrDefault(server, new ServerActivity(server)) .load(entityAction));
     }
 
     Collection<ServerActivity> activity() {
@@ -537,6 +516,7 @@ class HttpServer {
       public final IpId.Server server;
       public int messageCount;
       public long lastAccessedNs;
+      public Queue<Link> links = new LinkedList<>();
 
       public ServerActivity(IpId.Server server) {
         this.server = server;
@@ -544,9 +524,14 @@ class HttpServer {
         lastAccessedNs = 0;
       }
 
-      ServerActivity increment(EntityAction entityAction) {
+      ServerActivity load(EntityAction entityAction) {
         messageCount++;
         lastAccessedNs = System.nanoTime();
+
+        links.offer(new Link(entityAction.entityId, entityAction.httpClient, entityAction.httpServer));
+        while (links.size() > 50) {
+          links.poll();
+        }
         return this;
       }
 
@@ -592,6 +577,28 @@ class HttpServer {
     @Override
     public String toString() {
       return String.format("%s[%s, %s, %s]", getClass().getSimpleName(), entityId, client, server);
+    }
+  }
+
+  public static class ClientResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
+    public final Tree tree;
+    public final Collection<ClientActivity> clientActivities;
+    public final Collection<ServerActivity> serverActivities;
+
+    public ClientResponse(Tree tree, ActivitySummary activitySummary) {
+      this.tree = tree;
+      clientActivities = activitySummary.clientActivitySummary.clientActivities.values();
+      serverActivities = activitySummary.serverActivitySummary.serverActivities.values();
+    }
+
+    String toJson() {
+      ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+      try {
+        return ow.writeValueAsString(this);
+      } catch (JsonProcessingException e) {
+        return String.format("{ \"error\" : \"%s\" }", e.getMessage());
+      }
     }
   }
 

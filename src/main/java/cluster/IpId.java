@@ -1,11 +1,13 @@
 package cluster;
 
+import java.io.Serializable;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import akka.actor.Address;
 import akka.actor.typed.ActorSystem;
 
-public abstract class IpId {
+public abstract class IpId implements Serializable {
+  private static final long serialVersionUID = 1L;
   public final String ip;
   public final String id;
 
@@ -42,6 +44,7 @@ public abstract class IpId {
   }
 
   public static class Client extends IpId {
+    private static final long serialVersionUID = 1L;
     @JsonCreator
     public Client(@JsonProperty("ip") String ip, @JsonProperty("id") String id) {
       super(ip, id);
@@ -53,6 +56,7 @@ public abstract class IpId {
   };
 
   public static class Server extends IpId {
+    private static final long serialVersionUID = 1L;
     @JsonCreator
     public Server(@JsonProperty("ip") String ip, @JsonProperty("id") String id) {
       super(ip, id);
