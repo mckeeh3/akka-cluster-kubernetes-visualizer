@@ -65,23 +65,16 @@ public abstract class IpId {
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj)
-      return true;
-    if (obj == null)
-      return false;
-    if (getClass() != obj.getClass())
-      return false;
+    if (this == obj) return true;
+    if (obj == null) return false;
+    if (getClass() != obj.getClass()) return false;
     IpId other = (IpId) obj;
     if (id == null) {
-      if (other.id != null)
-        return false;
-    } else if (!id.equals(other.id))
-      return false;
+      if (other.id != null) return false;
+    } else if (!id.equals(other.id)) return false;
     if (ip == null) {
-      if (other.ip != null)
-        return false;
-    } else if (!ip.equals(other.ip))
-      return false;
+      if (other.ip != null) return false;
+    } else if (!ip.equals(other.ip)) return false;
     return true;
   }
 

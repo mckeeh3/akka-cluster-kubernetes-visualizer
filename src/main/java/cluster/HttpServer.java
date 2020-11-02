@@ -14,8 +14,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
@@ -43,11 +45,13 @@ import akka.http.javadsl.model.ws.Message;
 import akka.http.javadsl.model.ws.TextMessage;
 import akka.http.javadsl.server.Route;
 import akka.japi.JavaPartialFunction;
+import akka.remote.transport.netty.ClientHandler;
 import akka.stream.javadsl.Flow;
 import cluster.EntityActor.Value;
 import cluster.EntityCommand.ChangeValueAck;
 import cluster.EntityCommand.GetValueAck;
 import cluster.IpId.Client;
+import cluster.IpId.Server;
 
 class HttpServer {
   private final ActorSystem<?> actorSystem;
@@ -125,7 +129,7 @@ class HttpServer {
               EntityActor.Id id = new EntityActor.Id(getValue.id);
               return onSuccess(submitGetValue(new EntityActor.GetValue(id, null, getValue.httpClient, httpServer)),
                   getValueAck -> {
-                    final GetValueAck ack = new GetValueAck(id.id, getValueAck.value.value, getValue.nsStart, "success", StatusCodes.ACCEPTED.intValue());
+                    GetValueAck ack = new GetValueAck(id.id, getValueAck.value.value, getValue.nsStart, "success", StatusCodes.ACCEPTED.intValue());
                     return complete(StatusCodes.ACCEPTED, ack, Jackson.marshaller());
                   });
             }
@@ -139,7 +143,8 @@ class HttpServer {
     return entityRef.ask(getValue::replyTo, Duration.ofSeconds(30))
         .handle((reply, e) -> {
           if (reply != null) {
-            return new EntityActor.GetValueAck(getValue.id, new Value(reply instanceof EntityActor.GetValueAck
+            return new EntityActor.GetValueAck(getValue.id, 
+              new Value(reply instanceof EntityActor.GetValueAck 
                 ? ((EntityActor.GetValueAck) reply).value.value
                 : "Not found"));
           } else {
@@ -406,7 +411,7 @@ class HttpServer {
     }
   }
 
-  private static final long activityIdleLimitNs = 10 * 1000 * 1000000; // 10s in ns = 10 s * 1,000 ms/s  * 1,000,000 ns/ms
+  private static final long activityIdleLimitNs = 10 * 1000 * 1000000; // 10s in ns = 10 s * 1,000 ms/s * 1,000,000 ns/ms
 
   public static class ActivitySummary implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -414,8 +419,8 @@ class HttpServer {
     final ServerActivitySummary serverActivitySummary = new ServerActivitySummary();
 
     void load(EntityAction entityAction) {
-      clientActivitySummary.load(entityAction.httpClient);
-      serverActivitySummary.load(entityAction.httpServer);
+      clientActivitySummary.load(entityAction);
+      serverActivitySummary.load(entityAction);
     }
 
     @Override
@@ -427,13 +432,24 @@ class HttpServer {
   public static class ClientActivitySummary implements Serializable {
     private static final long serialVersionUID = 1L;
     private final Map<IpId.Client, ClientActivity> clientActivities = new HashMap<>();
+    private final Map<IpId.Client, Queue<Link>> links = new HashMap<>();
 
-    void load(IpId.Client client) {
-      clientActivities.put(client, clientActivities.getOrDefault(client, new ClientActivity(client)).increment());
+    void load(EntityAction entityAction) {
+      final Client client = entityAction.httpClient;
+      clientActivities.put(client, clientActivities.getOrDefault(client, new ClientActivity(client)).increment(entityAction));
+
+      links.put(client, links.getOrDefault(client, new LinkedList<>()));
+      final Link link = new Link(entityAction.entityId, entityAction.httpClient, entityAction.httpServer);
+      final Queue<Link> clientLinks = links.get(client);
+      clientLinks.offer(link);
+
+      while (clientLinks.size() > 50) {
+        clientLinks.poll();
+      }
     }
 
     Collection<ClientActivity> activity() {
-      clientActivities.entrySet().removeIf(c -> System.nanoTime() - c.getValue().lastAccessed > activityIdleLimitNs);
+      clientActivities.entrySet().removeIf(c -> System.nanoTime() - c.getValue().lastAccessedNs > activityIdleLimitNs);
       return clientActivities.values();
     }
 
@@ -446,17 +462,17 @@ class HttpServer {
       private static final long serialVersionUID = 1L;
       public final IpId.Client client;
       public int messageCount;
-      public long lastAccessed;
+      public long lastAccessedNs;
 
       public ClientActivity(Client client) {
         this.client = client;
         messageCount = 0;
-        lastAccessed = 0;
+        lastAccessedNs = 0;
       }
 
-      ClientActivity increment() {
+      ClientActivity increment(EntityAction entityAction) {
         messageCount++;
-        lastAccessed = System.nanoTime();
+        lastAccessedNs = System.nanoTime();
         return this;
       }
 
@@ -482,7 +498,7 @@ class HttpServer {
 
       @Override
       public String toString() {
-        return String.format("%s[%s, %,d, %,dns]", getClass().getSimpleName(), client, messageCount, lastAccessed);
+        return String.format("%s[%s, %,d, %,dns]", getClass().getSimpleName(), client, messageCount, lastAccessedNs);
       }
     }
   }
@@ -490,13 +506,29 @@ class HttpServer {
   public static class ServerActivitySummary implements Serializable {
     private static final long serialVersionUID = 1L;
     private Map<IpId.Server, ServerActivity> serverActivities = new HashMap<>();
+    private final Map<IpId.Client, Queue<Link>> links = new HashMap<>();
 
-    void load(IpId.Server server) {
-      serverActivities.put(server, serverActivities.getOrDefault(server, new ServerActivity(server)).increment());
+    void load(EntityAction entityAction) {
+      final Server server = entityAction.httpServer;
+      serverActivities.put(server, serverActivities.getOrDefault(server, new ServerActivity(server)) .increment(entityAction));
+
+      links.put(server, links.getOrDefault(server, new LinkedList<>()));
+      final Link link = new Link(entityAction.entityId, entityAction.httpClient, entityAction.httpServer);
+      final Queue<Link> serverLinks = links.get(server);
+      serverLinks.offer(link);
+
+      while (serverLinks.size() > 50) {
+        serverLinks.poll();
+      }
+
+      links.offer(new Link(entityAction.entityId, entityAction.httpClient, entityAction.httpServer));
+      while (links.size() > 50) {
+        links.poll();
+      }
     }
 
     Collection<ServerActivity> activity() {
-      serverActivities.entrySet().removeIf(s -> System.nanoTime() - s.getValue().lastAccessed > activityIdleLimitNs);
+      serverActivities.entrySet().removeIf(s -> System.nanoTime() - s.getValue().lastAccessedNs > activityIdleLimitNs);
       return serverActivities.values();
     }
 
@@ -509,17 +541,17 @@ class HttpServer {
       private static final long serialVersionUID = 1L;
       public final IpId.Server server;
       public int messageCount;
-      public long lastAccessed;
+      public long lastAccessedNs;
 
       public ServerActivity(IpId.Server server) {
         this.server = server;
         messageCount = 0;
-        lastAccessed = 0;
+        lastAccessedNs = 0;
       }
 
-      ServerActivity increment() {
+      ServerActivity increment(EntityAction entityAction) {
         messageCount++;
-        lastAccessed = System.nanoTime();
+        lastAccessedNs = System.nanoTime();
         return this;
       }
 
@@ -545,8 +577,26 @@ class HttpServer {
 
       @Override
       public String toString() {
-        return String.format("%s[%s, %,d, %,dns]", getClass().getSimpleName(), server, messageCount, lastAccessed);
+        return String.format("%s[%s, %,d, %,dns]", getClass().getSimpleName(), server, messageCount, lastAccessedNs);
       }
+    }
+  }
+
+  public static class Link implements Serializable {
+    private static final long serialVersionUID = 1L;
+    public final String entityId;
+    public final IpId.Client client;
+    public final IpId.Server server;
+
+    public Link(String entityId, Client client, Server server) {
+      this.entityId = entityId;
+      this.client = client;
+      this.server = server;
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%s[%s, %s, %s]", getClass().getSimpleName(), entityId, client, server);
     }
   }
 
