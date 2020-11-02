@@ -506,7 +506,7 @@ class HttpServer {
   public static class ServerActivitySummary implements Serializable {
     private static final long serialVersionUID = 1L;
     private Map<IpId.Server, ServerActivity> serverActivities = new HashMap<>();
-    private final Map<IpId.Client, Queue<Link>> links = new HashMap<>();
+    private final Map<IpId.Server, Queue<Link>> links = new HashMap<>();
 
     void load(EntityAction entityAction) {
       final Server server = entityAction.httpServer;
@@ -519,11 +519,6 @@ class HttpServer {
 
       while (serverLinks.size() > 50) {
         serverLinks.poll();
-      }
-
-      links.offer(new Link(entityAction.entityId, entityAction.httpClient, entityAction.httpServer));
-      while (links.size() > 50) {
-        links.poll();
       }
     }
 
