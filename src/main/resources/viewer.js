@@ -44,8 +44,8 @@ const svg = d3.select('svg')
 const g = svg.append('g')
   .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')');
 
-const gMembers = g.append('g')
-  .attr('class', 'members')
+const gServers = g.append('g')
+  .attr('class', 'servers')
 
 const gLink = g.append('g')
   .attr('class', 'links')
@@ -202,12 +202,85 @@ function updateHttpClientView(data) {
 }
 
 function updateHttpServerView(data) {
-  console.log(data);
+  const grid = Math.min(width, height) / 50;
+  const margin = grid * 0.1;
+  const widthId = grid * 1.5;
+  const widthIp = grid * 5;
+  const widthCount = grid * 2;
+  const heightLine = grid;
+
+  const servers = gServers.selectAll('g')
+    .data(serverData(data));
+  
+  const serverEnter = servers.enter().append('g')
+    .attr('cursor', 'pointer')
+    .on('click', clickMember);
+
+  serverEnter.append('rect')
+    .attr('x', d => d.x)
+    .attr('y', d => d.y)
+    .attr('width', widthId)
+    .attr('height', grid)
+    .style('fill', d => d.active ? '#30d35a' : '#555');
+
+  serverEnter.append('text')
+    .attr('x', d => d.x + widthId - margin)
+    .attr('y', d => d.y + grid - margin)
+    .attr('text-anchor', 'end')
+    .style('font-size', grid - margin * 2)
+    .style('fill', '#FFF')
+    .text(d => d.id);
+
+  serverEnter.append('rect')
+    .attr('x', d => d.x + widthId + margin)
+    .attr('y', d => d.y)
+    .attr('width', widthIp)
+    .attr('height', grid)
+    .style('fill', d => d.active ? '#30d35a' : '#555');
+
+  serverEnter.append('text')
+    .attr('x', d => d.x + widthId + margin + widthIp - margin)
+    .attr('y', d => d.y + grid - margin)
+    .attr('text-anchor', 'end')
+    .style('font-size', grid - margin * 2)
+    .style('fill', '#FFF')
+    .text(d => d.ip);
+
+  serverEnter.append('rect')
+    .attr('x', d => d.x + widthId + margin + widthIp + margin)
+    .attr('y', d => d.y)
+    .attr('width', widthCount)
+    .attr('height', grid)
+    .style('fill', d => d.active ? '#30d35a' : '#555');
+
+  serverEnter.append('text')
+    .attr('x', d => d.x + widthId + margin + widthIp + margin + widthCount - margin)
+    .attr('y', d => d.y + grid - margin)
+    .attr('text-anchor', 'end')
+    .style('font-size', grid - margin * 2)
+    .style('fill', '#FFF')
+    .text(d => d.messageCount);
+
+  servers.select('rect')
+    .style('fill', d => d.active ? '#30d35a' : '#555');
+
+  servers.select('text');
+
+  function serverData(data) {
+    const members = [];
+
+    const x = grid - width / 2;
+    data.forEach((s, i) => {
+      const y = i * (grid + margin) - height / 2;
+      members.push({ x: x, y: y, ip: s.server.ip, id: s.server.id, messageCount: s.messageCount, active: true });
+    });
+    return members;
+  }
 }
 
-function updateClusterView(hierarchy) {
+function updateClusterViewOLD(hierarchy) {
   const side = Math.min(width, height) / 20;
-  const members = gMembers.selectAll('g')
+  const members = gServers.selectAll('g')
     .data(memberData(hierarchy));
   
   const membersEnter = members.enter().append('g')

@@ -176,7 +176,6 @@ class HttpServer {
     if (messageText.startsWith("akka://")) {
       handleStopNode(messageText);
     }
-    log().info("{}", activitySummary);
     return responseAsJson();
   }
 
