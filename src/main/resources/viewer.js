@@ -67,7 +67,7 @@ const gNode = g.append('g')
   .attr('stroke-linejoin', 'round')
   .attr('stroke-width', 3);
 
-const grid = Math.min(width, height) / 80;
+const grid = Math.min(width, height) / 70;
 const margin = grid * 0.1;
 const widthId = grid * 1.5;
 const widthIp = grid * 5;
