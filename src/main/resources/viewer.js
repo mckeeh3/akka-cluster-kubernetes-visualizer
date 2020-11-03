@@ -32,7 +32,7 @@ const chartDiv = document.getElementById('chart');
 const width = chartDiv.clientWidth;
 const height = chartDiv.clientHeight;
 const radius = height / 2;
-const tree = d3.tree().size([2 * Math.PI, radius - 55]);
+const tree = d3.tree().size([2 * Math.PI, radius - 75]);
 
 const svg = d3.select('svg')
   .style('width', width)
@@ -67,7 +67,7 @@ const gNode = g.append('g')
   .attr('stroke-linejoin', 'round')
   .attr('stroke-width', 3);
 
-const grid = Math.min(width, height) / 70;
+const grid = Math.min(width, height) / 60;
 const margin = grid * 0.1;
 const widthId = grid * 1.5;
 const widthIp = grid * 5;
