@@ -37,9 +37,14 @@ const tree = d3.tree().size([2 * Math.PI, radius - 75]);
 const svg = d3.select('svg')
   .style('width', width)
   .style('height', height)
-  .style('padding', '10px')
+  .style('padding', '0px')
   .style('box-sizing', 'border-box')
   .style('font', 'sans-serif');
+
+svg.append('rect')
+    .attr('width', '100%')
+    .attr('height', '100%')
+    .attr('fill', '#001017');
 
 const g = svg.append('g')
   .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')');
@@ -124,7 +129,7 @@ function updateCropCircle(hierarchy) {
     .attr('class', d => 'node ' + d.data.type)
     .attr('transform', d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`)
     .on('mouseover', function() {
-      d3.select(this).select('text').style('font-size', 24).style('fill', '#046E97');
+      d3.select(this).select('text').style('font-size', 24).style('fill', '#FEE1B7');
     })
     .on('mouseout', function(d) {
       d3.select(this).select('text').style('font-size', 12).style('fill', '#999');
@@ -214,7 +219,7 @@ function updateHttpClientView(data) {
 
     const x = width / 2 - (grid + widthId + margin + widthIp + margin + widthCount);
     data.forEach((n, i) => {
-      const y = i * (grid + margin) - height / 2;
+      const y = grid + i * (grid + margin) - height / 2;
       nodes.push({ x: x, y: y, ip: n.client.ip, id: n.client.id, messageCount: n.messageCount.toLocaleString(), active: true });
     });
     return nodes;
@@ -232,7 +237,7 @@ function updateHttpServerView(data) {
 
     const x = grid - width / 2;
     data.forEach((n, i) => {
-      const y = i * (grid + margin) - height / 2;
+      const y = grid + i * (grid + margin) - height / 2;
       members.push({ x: x, y: y, ip: n.server.ip, id: n.server.id, messageCount: n.messageCount.toLocaleString(), active: true });
     });
     return members;
@@ -240,6 +245,8 @@ function updateHttpServerView(data) {
 }
 
 function updateClusterNodes(nodes) {
+  const bgColor = '#233349';
+  const txColor = '#FFF';
   const nodesEnter = nodes.enter().append('g')
     .attr('cursor', 'pointer')
     .on('click', clickMember);
@@ -249,15 +256,15 @@ function updateClusterNodes(nodes) {
     .attr('y', d => d.y)
     .attr('width', widthId)
     .attr('height', grid)
-    .style('fill', d => d.active ? '#30d35a' : '#555');
+    .style('fill', d => d.active ? bgColor : '#555');
 
   nodesEnter.append('text')
     .attr('x', d => d.x + widthId - margin)
     .attr('y', d => d.y + grid - margin)
     .attr('text-anchor', 'end')
     .attr('class', 'id')
-    .style('font-size', grid - margin * 2)
-    .style('fill', '#FFF')
+    .style('font-size', grid - margin * 2.5)
+    .style('fill', txColor)
     .text(d => d.id);
 
   nodesEnter.append('rect')
@@ -265,15 +272,15 @@ function updateClusterNodes(nodes) {
     .attr('y', d => d.y)
     .attr('width', widthIp)
     .attr('height', grid)
-    .style('fill', d => d.active ? '#30d35a' : '#555');
+    .style('fill', d => d.active ? bgColor : '#555');
 
   nodesEnter.append('text')
     .attr('x', d => d.x + widthId + margin + widthIp - margin)
     .attr('y', d => d.y + grid - margin)
     .attr('text-anchor', 'end')
     .attr('class', 'ip')
-    .style('font-size', grid - margin * 2)
-    .style('fill', '#FFF')
+    .style('font-size', grid - margin * 2.5)
+    .style('fill', txColor)
     .text(d => d.ip);
 
   nodesEnter.append('rect')
@@ -281,19 +288,19 @@ function updateClusterNodes(nodes) {
     .attr('y', d => d.y)
     .attr('width', widthCount)
     .attr('height', grid)
-    .style('fill', d => d.active ? '#30d35a' : '#555');
+    .style('fill', d => d.active ? bgColor : '#555');
 
   nodesEnter.append('text')
     .attr('x', d => d.x + widthId + margin + widthIp + margin + widthCount - margin)
     .attr('y', d => d.y + grid - margin)
     .attr('text-anchor', 'end')
     .attr('class', 'messageCount')
-    .style('font-size', grid - margin * 2)
-    .style('fill', '#FFF')
+    .style('font-size', grid - margin * 2.5)
+    .style('fill', txColor)
     .text(d => d.messageCount);
 
   nodes.select('rect')
-    .style('fill', d => d.active ? '#30d35a' : '#555');
+    .style('fill', d => d.active ? bgColor : '#555');
 
   nodes.select('text.id')
     .text(d => d.id);
@@ -379,7 +386,7 @@ function labelOffsetX(d) {
 }
 
 function memberNumber(d) {
-  // expect: "akka://cluster@172.17.0.3:25520"
+  // expect: 'akka://cluster@172.17.0.3:25520'
   const addr1 = d.data.name.split(':');
   const addr2 = addr1.length == 3 ? addr1[1].split('.') : ['X'];
   return addr2.length == 4 ? addr2[3] : 'X';
