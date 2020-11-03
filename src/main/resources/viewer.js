@@ -45,7 +45,10 @@ const g = svg.append('g')
   .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')');
 
 const gServers = g.append('g')
-  .attr('class', 'servers')
+  .attr('class', 'httpServers')
+
+const gClients = g.append('g')
+  .attr('class', 'httpClients')
 
 const gLink = g.append('g')
   .attr('class', 'links')
@@ -197,33 +200,61 @@ function updateCropCircle(hierarchy) {
     .remove();
 }
 
+const grid = Math.min(width, height) / 90;
+const margin = grid * 0.1;
+const widthId = grid * 1.5;
+const widthIp = grid * 5;
+const widthCount = grid * 4;
+
 function updateHttpClientView(data) {
-  console.log(data);
+  const clients = gClients.selectAll('g')
+    .data(clientData(data));
+
+  updateClusterNodes(clients);
+
+  function clientData(data) {
+    const nodes = [];
+
+    const x = width / 2 - (grid + widthId + margin + widthIp + margin + widthCount);
+    data.forEach((n, i) => {
+      const y = i * (grid + margin) - height / 2;
+      nodes.push({ x: x, y: y, ip: n.client.ip, id: n.client.id, messageCount: n.messageCount.toLocaleString(), active: true });
+    });
+    return nodes;
+  }
 }
 
 function updateHttpServerView(data) {
-  const grid = Math.min(width, height) / 50;
-  const margin = grid * 0.1;
-  const widthId = grid * 1.5;
-  const widthIp = grid * 5;
-  const widthCount = grid * 2;
-  const heightLine = grid;
-
   const servers = gServers.selectAll('g')
     .data(serverData(data));
   
-  const serverEnter = servers.enter().append('g')
+  updateClusterNodes(servers);
+
+  function serverData(data) {
+    const members = [];
+
+    const x = grid - width / 2;
+    data.forEach((n, i) => {
+      const y = i * (grid + margin) - height / 2;
+      members.push({ x: x, y: y, ip: n.server.ip, id: n.server.id, messageCount: n.messageCount.toLocaleString(), active: true });
+    });
+    return members;
+  }
+}
+
+function updateClusterNodes(nodes) {
+  const nodesEnter = nodes.enter().append('g')
     .attr('cursor', 'pointer')
     .on('click', clickMember);
 
-  serverEnter.append('rect')
+  nodesEnter.append('rect')
     .attr('x', d => d.x)
     .attr('y', d => d.y)
     .attr('width', widthId)
     .attr('height', grid)
     .style('fill', d => d.active ? '#30d35a' : '#555');
 
-  serverEnter.append('text')
+  nodesEnter.append('text')
     .attr('x', d => d.x + widthId - margin)
     .attr('y', d => d.y + grid - margin)
     .attr('text-anchor', 'end')
@@ -231,14 +262,14 @@ function updateHttpServerView(data) {
     .style('fill', '#FFF')
     .text(d => d.id);
 
-  serverEnter.append('rect')
+  nodesEnter.append('rect')
     .attr('x', d => d.x + widthId + margin)
     .attr('y', d => d.y)
     .attr('width', widthIp)
     .attr('height', grid)
     .style('fill', d => d.active ? '#30d35a' : '#555');
 
-  serverEnter.append('text')
+  nodesEnter.append('text')
     .attr('x', d => d.x + widthId + margin + widthIp - margin)
     .attr('y', d => d.y + grid - margin)
     .attr('text-anchor', 'end')
@@ -246,92 +277,30 @@ function updateHttpServerView(data) {
     .style('fill', '#FFF')
     .text(d => d.ip);
 
-  serverEnter.append('rect')
+  nodesEnter.append('rect')
     .attr('x', d => d.x + widthId + margin + widthIp + margin)
     .attr('y', d => d.y)
     .attr('width', widthCount)
     .attr('height', grid)
     .style('fill', d => d.active ? '#30d35a' : '#555');
 
-  serverEnter.append('text')
+  nodesEnter.append('text')
     .attr('x', d => d.x + widthId + margin + widthIp + margin + widthCount - margin)
     .attr('y', d => d.y + grid - margin)
     .attr('text-anchor', 'end')
+    .attr('class', 'messageCount')
     .style('font-size', grid - margin * 2)
     .style('fill', '#FFF')
     .text(d => d.messageCount);
 
-  servers.select('rect')
+  nodes.select('rect')
     .style('fill', d => d.active ? '#30d35a' : '#555');
 
-  servers.select('text');
+  nodes.select('text.messageCount')
+    .text(d => d.messageCount);
 
-  function serverData(data) {
-    const members = [];
-
-    const x = grid - width / 2;
-    data.forEach((s, i) => {
-      const y = i * (grid + margin) - height / 2;
-      members.push({ x: x, y: y, ip: s.server.ip, id: s.server.id, messageCount: s.messageCount, active: true });
-    });
-    return members;
-  }
-}
-
-function updateClusterViewOLD(hierarchy) {
-  const side = Math.min(width, height) / 20;
-  const members = gServers.selectAll('g')
-    .data(memberData(hierarchy));
-  
-  const membersEnter = members.enter().append('g')
-    .attr('cursor', 'pointer')
-    .on('click', clickMember);
-
-  membersEnter.append('rect')
-    .attr('x', d => d.x)
-    .attr('y', d => d.y)
-    .attr('width', side)
-    .attr('height', side)
-    .style('fill', d => d.active ? '#30d35a' : '#555');
-
-  membersEnter.append('text')
-    .attr('x', d => d.x + side / 5)
-    .attr('y', d => d.y + side / 2)
-    .style('font-size', 24)
-    .style('fill', '#FFF')
-    .text(d => d.memberId - 2550);
-
-  members.select('rect')
-    .style('fill', d => d.active ? '#30d35a' : '#555');
-
-  members.select('text');
-
-  function memberData(hierarchy) {
-    const members = [];
-    let memberId = 2551;
-    for (var row = 0; row < 3; row++) {
-      for (var col  = 0; col < 3; col++) {
-        const x = col * (side + 2) + side / 2 - width / 2;
-        const y = row * (side + 2) + side / 2 - height / 2;
-        members.push({ memberId: memberId, x: x, y: y, active: isActive(memberId), address: address(memberId) });
-        memberId++;
-      }
-    }
-    return members;
-  }
-
-  function address(m) {
-    const idx = hierarchy.children
-      ? hierarchy.children.findIndex(d => d.name.endsWith(m))
-      : -1;
-    return idx >= 0 ? hierarchy.children[idx].name : '';
-  }
-
-  function isActive(m) {
-    return hierarchy.children
-      ? hierarchy.children.findIndex(d => d.name.endsWith(m)) >= 0
-      : false;
-  }
+  nodes.exit()
+    .remove();
 }
 
 function linkId(d) {

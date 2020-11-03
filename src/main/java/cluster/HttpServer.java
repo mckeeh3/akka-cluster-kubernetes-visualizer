@@ -403,7 +403,7 @@ class HttpServer {
     }
   }
 
-  private static final long activityIdleLimitNs = 10 * 1000 * 1000000; // 10s in ns = 10 s * 1,000 ms/s * 1,000,000 ns/ms
+  private static final long activityIdleLimitNs = 15 * 1000 * 1000000; // 15s in ns = 10 s * 1,000 ms/s * 1,000,000 ns/ms
 
   public static class ActivitySummary implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -587,8 +587,8 @@ class HttpServer {
 
     public ClientResponse(Tree tree, ActivitySummary activitySummary) {
       this.tree = tree;
-      clientActivities = activitySummary.clientActivitySummary.clientActivities.values();
-      serverActivities = activitySummary.serverActivitySummary.serverActivities.values();
+      clientActivities = activitySummary.clientActivitySummary.activity();
+      serverActivities = activitySummary.serverActivitySummary.activity();
     }
 
     String toJson() {
