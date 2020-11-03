@@ -190,28 +190,42 @@ class HttpServer {
   }
 
   private Message responseAsJson() {
-    clearInactiveNodesFromTree();
+    clearInactiveNodes();
     tree.setMemberType(Cluster.get(actorSystem).selfMember().address().toString(), "httpServer");
     final ClientResponse clientResponse = new ClientResponse(tree, activitySummary);
     return TextMessage.create(clientResponse.toJson());
   }
 
-  private void clearInactiveNodesFromTree() {
+  private void clearInactiveNodes() {
     final Cluster cluster = Cluster.get(actorSystem);
     final ClusterEvent.CurrentClusterState clusterState = cluster.state();
 
     final Set<Member> unreachable = clusterState.getUnreachable();
 
-    List<String> members = StreamSupport.stream(clusterState.getMembers().spliterator(), false)
+    final List<Member> members = StreamSupport.stream(clusterState.getMembers().spliterator(), false)
         .filter(member -> member.status().equals(MemberStatus.up()))
         .filter(member -> !(unreachable.contains(member)))
-        .map(member -> member.address().toString()).collect(Collectors.toList());
+        .collect(Collectors.toList());
+    final List<String> memberIps = members.stream().map(m -> m.address().getHost().orElse("0.0.0.0")).collect(Collectors.toList());
+    final List<String> memberAddresses = members.stream().map(m -> m.address().toString()).collect(Collectors.toList());
 
+    clearInactiveNodesFromTree(memberAddresses);
+    clearInactiveNodesFromActivitySummary(memberIps);
+  }
+
+  private void clearInactiveNodesFromTree(List<String> members) {
     final int count = tree.children.size();
     tree.children.removeIf(node -> !members.contains(node.name));
     if (count != tree.children.size()) {
       log().info("Removed {} members from tree", count - tree.children.size());
     }
+  }
+
+  private static final long activityIdleLimitNs = 15 * 1000 * 1000000L; // Ns in ns = 10 s * 1,000 ms/s * 1,000,000 ns/ms
+
+  private void clearInactiveNodesFromActivitySummary(List<String> members) {
+    activitySummary.clientActivitySummary.clientActivities.entrySet().removeIf(c -> System.nanoTime() - c.getValue().lastAccessedNs > activityIdleLimitNs);
+    activitySummary.serverActivitySummary.serverActivities.entrySet().removeIf(s -> !members.contains(s.getValue().server.ip));
   }
 
   void load(EntityAction entityAction) {
@@ -403,8 +417,6 @@ class HttpServer {
     }
   }
 
-  private static final long activityIdleLimitNs = 15 * 1000 * 1000000; // 15s in ns = 10 s * 1,000 ms/s * 1,000,000 ns/ms
-
   public static class ActivitySummary implements Serializable {
     private static final long serialVersionUID = 1L;
     public final ClientActivitySummary clientActivitySummary = new ClientActivitySummary();
@@ -417,7 +429,8 @@ class HttpServer {
 
     @Override
     public String toString() {
-      return String.format("%s[%s, %s]", getClass().getSimpleName(), clientActivitySummary.activity(), serverActivitySummary.activity());
+      return String.format("%s[%s, %s]", getClass().getSimpleName(), 
+        clientActivitySummary.clientActivities.values(), serverActivitySummary.serverActivities.values());
     }
   }
 
@@ -430,8 +443,7 @@ class HttpServer {
       clientActivities.put(client, clientActivities.getOrDefault(client, new ClientActivity(client)).load(entityAction));
     }
 
-    Collection<ClientActivity> activity() {
-      clientActivities.entrySet().removeIf(c -> System.nanoTime() - c.getValue().lastAccessedNs > activityIdleLimitNs);
+    Collection<ClientActivity> activityOLD() {
       return clientActivities.values();
     }
 
@@ -497,12 +509,7 @@ class HttpServer {
 
     void load(EntityAction entityAction) {
       final Server server = entityAction.httpServer;
-      serverActivities.put(server, serverActivities.getOrDefault(server, new ServerActivity(server)) .load(entityAction));
-    }
-
-    Collection<ServerActivity> activity() {
-      serverActivities.entrySet().removeIf(s -> System.nanoTime() - s.getValue().lastAccessedNs > activityIdleLimitNs);
-      return serverActivities.values();
+      serverActivities.put(server, serverActivities.getOrDefault(server, new ServerActivity(server)).load(entityAction));
     }
 
     @Override
@@ -514,18 +521,15 @@ class HttpServer {
       private static final long serialVersionUID = 1L;
       public final IpId.Server server;
       public int messageCount;
-      public long lastAccessedNs;
       public Queue<Link> links = new LinkedList<>();
 
       public ServerActivity(IpId.Server server) {
         this.server = server;
         messageCount = 0;
-        lastAccessedNs = 0;
       }
 
       ServerActivity load(EntityAction entityAction) {
         messageCount++;
-        lastAccessedNs = System.nanoTime();
 
         links.offer(new Link(entityAction.entityId, entityAction.httpClient, entityAction.httpServer));
         while (links.size() > 50) {
@@ -556,7 +560,7 @@ class HttpServer {
 
       @Override
       public String toString() {
-        return String.format("%s[%s, %,d, %,dns]", getClass().getSimpleName(), server, messageCount, lastAccessedNs);
+        return String.format("%s[%s, %,d]", getClass().getSimpleName(), server, messageCount);
       }
     }
   }
@@ -587,8 +591,8 @@ class HttpServer {
 
     public ClientResponse(Tree tree, ActivitySummary activitySummary) {
       this.tree = tree;
-      clientActivities = activitySummary.clientActivitySummary.activity();
-      serverActivities = activitySummary.serverActivitySummary.activity();
+      clientActivities = activitySummary.clientActivitySummary.clientActivities.values();
+      serverActivities = activitySummary.serverActivitySummary.serverActivities.values();
     }
 
     String toJson() {

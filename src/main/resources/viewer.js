@@ -5,7 +5,7 @@ function sendWebSocketRequest(request) {
     webSocket.send(request);
   } else {
     webSocket = new WebSocket('ws://' + location.host + '/viewer-entities');
-    update({ 'activitySummary': {}, 'tree': { 'name': 'cluster', 'type': 'cluster' }});
+    update({ 'clientActivities': [], 'serverActivities': [], 'tree': { 'name': 'cluster', 'type': 'cluster' }});
 
     webSocket.onopen = function(event) {
       console.log('WebSocket connected', event);
@@ -62,17 +62,18 @@ const gNode = g.append('g')
   .attr('stroke-linejoin', 'round')
   .attr('stroke-width', 3);
 
+const grid = Math.min(width, height) / 90;
+const margin = grid * 0.1;
+const widthId = grid * 1.5;
+const widthIp = grid * 5;
+const widthCount = grid * 4;
+
 sendWebSocketRequest();
 setInterval(sendWebSocketRequest, 5000);
 
 function update(data) {
-  //updateClusterView(hierarchy);
-  if (data.clientActivities && data.clientActivities.length > 0) {
-    updateHttpClientView(data.clientActivities);
-  }
-  if (data.serverActivities && data.serverActivities.length > 0) {
-    updateHttpServerView(data.serverActivities);
-  }
+  updateHttpClientView(data.clientActivities);
+  updateHttpServerView(data.serverActivities);
   updateCropCircle(data.tree);
 }
 
@@ -169,7 +170,9 @@ function updateCropCircle(hierarchy) {
 
   node.transition(t2)
     .select('circle.shard')
-      .style('fill', shardColor);
+      .attr('r', circleRadius)
+      .style('fill', shardColor)
+      .style('opacity', 1.0);
 
   node.transition(t2)
     .select('text')
@@ -199,12 +202,6 @@ function updateCropCircle(hierarchy) {
     .transition(t1)
     .remove();
 }
-
-const grid = Math.min(width, height) / 90;
-const margin = grid * 0.1;
-const widthId = grid * 1.5;
-const widthIp = grid * 5;
-const widthCount = grid * 4;
 
 function updateHttpClientView(data) {
   const clients = gClients.selectAll('g')
@@ -258,6 +255,7 @@ function updateClusterNodes(nodes) {
     .attr('x', d => d.x + widthId - margin)
     .attr('y', d => d.y + grid - margin)
     .attr('text-anchor', 'end')
+    .attr('class', 'id')
     .style('font-size', grid - margin * 2)
     .style('fill', '#FFF')
     .text(d => d.id);
@@ -273,6 +271,7 @@ function updateClusterNodes(nodes) {
     .attr('x', d => d.x + widthId + margin + widthIp - margin)
     .attr('y', d => d.y + grid - margin)
     .attr('text-anchor', 'end')
+    .attr('class', 'ip')
     .style('font-size', grid - margin * 2)
     .style('fill', '#FFF')
     .text(d => d.ip);
@@ -295,6 +294,12 @@ function updateClusterNodes(nodes) {
 
   nodes.select('rect')
     .style('fill', d => d.active ? '#30d35a' : '#555');
+
+  nodes.select('text.id')
+    .text(d => d.id);
+
+  nodes.select('text.ip')
+    .text(d => d.ip);
 
   nodes.select('text.messageCount')
     .text(d => d.messageCount);
@@ -392,7 +397,8 @@ function clickCircle(d) {
 }
 
 function clickMember(d) {
-  sendWebSocketRequest(d.address);
+  const member = `akka://cluster@${d.ip}:25520`;
+  sendWebSocketRequest(member);
 }
 
 let traceEntityIdNew = '';
