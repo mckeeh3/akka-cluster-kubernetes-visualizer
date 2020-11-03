@@ -32,7 +32,7 @@ const chartDiv = document.getElementById('chart');
 const width = chartDiv.clientWidth;
 const height = chartDiv.clientHeight;
 const radius = height / 2;
-const tree = d3.tree().size([2 * Math.PI, radius - 75]);
+const tree = d3.tree().size([2 * Math.PI, radius - 55]);
 
 const svg = d3.select('svg')
   .style('width', width)
