@@ -365,13 +365,13 @@ function updateHttpServerLinks(data, shardingLinks) {
     .duration(750);
 
   const link = gHttpServerLink.selectAll('path.http-server')
-    .data(links, function (d) { 
-                   return d.source.id + '-' + d.target.id; });
+    .data(links, d => d.source.id + '-' + d.target.id);
 
   const linkEnter = link.enter().append('path')
     .attr('id', function (d) { 
                        return d.source.id + '-' + d.target.id; })
     .attr('class', d => 'http-server color-' + d.source.id)
+    .attr('stroke', d => d3.schemeSet3[Number(d.source.id) % d3.schemeSet3.length])
     .style('opacity', 0.000001)
     .attr('d', d3.linkRadial()
                  .angle(d => d.x)
