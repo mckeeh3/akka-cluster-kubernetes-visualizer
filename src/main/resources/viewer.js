@@ -497,11 +497,13 @@ function memberNumber(d) {
 
 function clickCircle(d) {
   if (d.data.type.indexOf('member') >= 0) {
-    sendWebSocketRequest(d.data.name);
+    //sendWebSocketRequest(d.data.name);
+    toggleMemberLinkView(d);
   } else if (d.data.type == 'entity') {
     traceEntityId = d.data.name == traceEntityId ? '' : d.data.name;
     traceShardId = traceEntityId.length > 0 ? d.parent.data.name : '';
   } else if (d.data.type == 'shard') {
+    traceEntityId = '';
     traceShardId = d.data.name == traceShardId ? '' : d.data.name;
   }
 }
@@ -509,6 +511,17 @@ function clickCircle(d) {
 function clickMember(d) {
   const member = `akka://cluster@${d.ip}:25520`;
   sendWebSocketRequest(member);
+}
+
+const hiddenMemberLinkViews = [];
+
+function toggleMemberLinkView(d) {
+  const i = hiddenMemberLinkViews.indexOf(d.data.name);
+  if (i >= 0) {
+    hiddenMemberLinkViews.splice(i, 1);
+  } else {
+    hiddenMemberLinkViews.push(d.data.name);
+  }
 }
 
 let traceEntityIdNew = '';
