@@ -67,6 +67,9 @@ const gNode = g.append('g')
   .attr('stroke-linejoin', 'round')
   .attr('stroke-width', 3);
 
+const gHttpServerLink = g.append('g');
+const gHttpClientLink = g.append('g');
+
 const grid = Math.min(width, height) / 60;
 const margin = grid * 0.1;
 const widthId = grid * 1.5;
@@ -79,10 +82,16 @@ setInterval(sendWebSocketRequest, 5000);
 function update(data) {
   updateHttpClientView(data.clientActivities);
   updateHttpServerView(data.serverActivities);
-  updateCropCircle(data.tree);
+
+  const shardingData = tree(d3.hierarchy(data.tree));
+
+  updateHttpClientLinks(data.clientActivities, shardingData.links());
+  updateHttpServerLinks(data.serverActivities, shardingData.links())
+
+  updateCropCircle(shardingData);
 }
 
-function updateCropCircle(hierarchy) {
+function updateCropCircle(root) {
   const t1 = d3.transition()
     .duration(750);
 
@@ -94,9 +103,7 @@ function updateCropCircle(hierarchy) {
     .delay(1500)
     .duration(750);
 
-  const root = tree(d3.hierarchy(hierarchy));
-
-  const link = gLink.selectAll('path')
+  const link = gLink.selectAll('path.link')
     .data(root.links(), linkId);
 
   const linkEnter = link.enter().append('path')
@@ -110,8 +117,8 @@ function updateCropCircle(hierarchy) {
   link.transition(t2)
     .style('opacity', 1.0)
     .attr('d', d3.linkRadial()
-    .angle(d => d.x)
-    .radius(d => d.y));
+                 .angle(d => d.x)
+                 .radius(d => d.y));
 
   linkEnter.transition(t3)
     .style('opacity', 1.0);
@@ -153,6 +160,7 @@ function updateCropCircle(hierarchy) {
 
   nodeEnter.filter(d => d.data.type.includes('member'))
     .append('text')
+    .attr('class', 'member')
     .attr('dy', '0.31em')
     .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
     .attr('cursor', 'pointer')
@@ -160,7 +168,7 @@ function updateCropCircle(hierarchy) {
     .on('click', clickCircle)
     .style('font-size', 22)
     .style('fill', '#FFF')
-    .style('opacity', 1)
+    .style('opacity', 0.000001)
     .text(memberNumber);
 
   nodeEnter.append('title')
@@ -180,7 +188,17 @@ function updateCropCircle(hierarchy) {
       .style('opacity', 1.0);
 
   node.transition(t2)
+    .select('circle.member')
+      .attr('r', circleRadius)
+      .style('fill', circleColor)
+      .style('opacity', 1.0);
+
+  node.transition(t2)
     .select('text')
+      .style('opacity', 1.0);
+
+  node.transition(t2)
+    .select('text.member')
       .style('opacity', 1.0);
 
   nodeEnter.transition(t3)
@@ -189,6 +207,10 @@ function updateCropCircle(hierarchy) {
 
   nodeEnter.transition(t3)
     .select('text')
+      .style('opacity', 1.0);
+
+  nodeEnter.transition(t3)
+    .select('text.member')
       .style('opacity', 1.0);
 
   node.exit()
@@ -205,6 +227,11 @@ function updateCropCircle(hierarchy) {
 
   node.exit()
     .transition(t1)
+    .select('text.member')
+      .style('opacity', 0.000001);
+
+  node.exit()
+    .transition(t1)
     .remove();
 }
 
@@ -212,7 +239,7 @@ function updateHttpClientView(data) {
   const clients = gClients.selectAll('g')
     .data(clientData(data));
 
-  updateClusterNodes(clients);
+  updateHttpNodeView(clients);
 
   function clientData(data) {
     const nodes = [];
@@ -230,7 +257,7 @@ function updateHttpServerView(data) {
   const servers = gServers.selectAll('g')
     .data(serverData(data));
   
-  updateClusterNodes(servers);
+  updateHttpNodeView(servers);
 
   function serverData(data) {
     const members = [];
@@ -244,8 +271,8 @@ function updateHttpServerView(data) {
   }
 }
 
-function updateClusterNodes(nodes) {
-  const bgColor = '#233349';
+function updateHttpNodeView(nodes) {
+  const bgColor = 'rgba(255, 255, 255, 0.1)';
   const txColor = '#FFF';
   const nodesEnter = nodes.enter().append('g')
     .attr('cursor', 'pointer')
@@ -313,6 +340,78 @@ function updateClusterNodes(nodes) {
 
   nodes.exit()
     .remove();
+}
+
+function updateHttpClientLinks(data, links) {
+  console.log('TODO');
+}
+
+function updateHttpServerLinks(data, shardingLinks) {
+  const links = serversLinks(data, shardingLinks);
+
+  const t1 = d3.transition()
+    .duration(750);
+
+  const t2 = d3.transition()
+    .delay(750)
+    .duration(750);
+
+  const t3 = d3.transition()
+    .delay(1500)
+    .duration(750);
+
+  const link = gLink.selectAll('path.http-server')
+    .data(links, function (d) { 
+                   return d.source.id + '-' + d.target.id; });
+
+  const linkEnter = link.enter().append('path')
+    .attr('id', d => function (d) { 
+                       return d.source.id + '-' + d.target.id; })
+    .attr('class', d => 'http-server')
+    .style('opacity', 0.000001)
+    .attr('d', d3.linkRadial()
+                 .angle(d => d.x)
+                 .radius(d => d.y));
+
+  link.transition(t2)
+    .style('opacity', 1.0)
+    .attr('d', d3.linkRadial()
+                 .angle(d => d.x)
+                 .radius(d => d.y));
+
+  linkEnter.transition(t3)
+    .style('opacity', 1.0);
+
+  link.exit()
+    .transition(t1)
+    .style('opacity', 0.000001)
+    .remove();
+
+  function serversLinks(data, shardingLinks) {
+    const links = [];
+    data.forEach(s => {
+      const ip = s.server.ip;
+      const id = s.server.id;
+      const serverLink = shardingLinks.find(l => l.target.data.name.includes(ip));
+      if (serverLink) {
+        links.push(...serverLinks(id, serverLink.target, s.links, shardingLinks));
+      }
+    });
+    return links;
+  }
+
+  function serverLinks(sourceId, source, serverLinks, shardingLinks) {
+    const links = [];
+    serverLinks.forEach(l => {
+      const entityId = l.entityId;
+      const entityLink = shardingLinks.find(l => l.target.data.name == entityId);
+      if (entityLink) {
+        links.push({ source: { id: sourceId, x: source.x, y: source.y }, 
+                     target: { id: entityId, x: entityLink.target.x, y: entityLink.target.y } });
+      }
+    });
+    return links;
+  }
 }
 
 function linkId(d) {
