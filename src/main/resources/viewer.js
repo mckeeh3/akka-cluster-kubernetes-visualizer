@@ -55,6 +55,13 @@ const gServers = g.append('g')
 const gClients = g.append('g')
   .attr('class', 'httpClients')
 
+const gHttpServerLink = g.append('g')
+  .attr('class', 'http-server-link')
+  .attr('stroke-opacity', '0.4');
+
+const gHttpClientLink = g.append('g')
+  .attr('class', 'http-client-link');
+
 const gLink = g.append('g')
   .attr('class', 'links')
   .attr('fill', 'none')
@@ -66,9 +73,6 @@ const gNode = g.append('g')
   .attr('class', 'nodes')
   .attr('stroke-linejoin', 'round')
   .attr('stroke-width', 3);
-
-const gHttpServerLink = g.append('g');
-const gHttpClientLink = g.append('g');
 
 const grid = Math.min(width, height) / 60;
 const margin = grid * 0.1;
@@ -107,7 +111,7 @@ function updateCropCircle(root) {
     .data(root.links(), linkId);
 
   const linkEnter = link.enter().append('path')
-    .attr('id', d => linkId)
+    .attr('id', linkId)
     .attr('class', d => 'link ' + d.source.data.type)
     .style('opacity', 0.000001)
     .attr('d', d3.linkRadial()
@@ -360,14 +364,14 @@ function updateHttpServerLinks(data, shardingLinks) {
     .delay(1500)
     .duration(750);
 
-  const link = gLink.selectAll('path.http-server')
+  const link = gHttpServerLink.selectAll('path.http-server')
     .data(links, function (d) { 
                    return d.source.id + '-' + d.target.id; });
 
   const linkEnter = link.enter().append('path')
-    .attr('id', d => function (d) { 
+    .attr('id', function (d) { 
                        return d.source.id + '-' + d.target.id; })
-    .attr('class', d => 'http-server')
+    .attr('class', d => 'http-server color-' + d.source.id)
     .style('opacity', 0.000001)
     .attr('d', d3.linkRadial()
                  .angle(d => d.x)
