@@ -370,18 +370,12 @@ function updateHttpClientLinks(data, shardingLinks) {
     .attr('class', d => 'http-client http-client-id-' + d.source.id)
     .attr('stroke', d => d3.schemeSet3[Number(d.source.id) % d3.schemeSet3.length])
     .style('opacity', 0.000001)
-//    .attr('d', d3.linkRadial()
-//                 .angle(d => d.x)
-//                 .radius(d => d.y));
     .attr("d", d3.linkHorizontal()
               .x(d => d.x)
               .y(d => d.y));
 
   link.transition(t2)
     .style('opacity', 1.0)
-//    .attr('d', d3.linkRadial()
-//                 .angle(d => d.x)
-//                 .radius(d => d.y));
     .attr("d", d3.linkHorizontal()
               .x(d => d.x)
               .y(d => d.y));
@@ -400,9 +394,6 @@ function updateHttpClientLinks(data, shardingLinks) {
     data.forEach((c, i) => {
       const id = c.client.id;
       const y = (grid + grid / 2 + i * (grid + margin)) - height / 2;
-      //const angle = Math.atan2(x, y);
-      //const radius = Math.sqrt(x * x + y * y);
-      //const clientLink = { x: angle, y: radius };
       const clientLink = { x: x, y: y };
       links.push(...clientLinks(id, clientLink, c.links, shardingLinks));
     });
@@ -416,7 +407,7 @@ function updateHttpClientLinks(data, shardingLinks) {
       const serverId = l.server.id;
       const serverIp = l.server.ip;
       const serverLink = shardingLinks.find(l => l.target.data.name.includes(serverIp));
-      if (serverLink) {
+      if (serverLink && showServerLinks(serverIp)) {
         const targetX = serverLink.target.y * Math.sin(serverLink.target.x);
         const targetY = 0 - serverLink.target.y * Math.cos(serverLink.target.x);
         links.push({ source: { id: sourceId, x: source.x, y: source.y },
@@ -504,10 +495,10 @@ function updateHttpServerLinks(data, shardingLinks) {
     });
     return links;
   }
+}
 
-  function showServerLinks(ip) {
-    return hiddenMemberLinkViews.find(s => s.includes(ip)) ? false : true;
-  }
+function showServerLinks(ip) {
+  return hiddenMemberLinkViews.find(s => s.includes(ip)) ? false : true;
 }
 
 function linkId(d) {
