@@ -397,7 +397,7 @@ function updateHttpServerLinks(data, shardingLinks) {
       const ip = s.server.ip;
       const id = s.server.id;
       const serverLink = shardingLinks.find(l => l.target.data.name.includes(ip));
-      if (serverLink) {
+      if (serverLink && showServerLinks(ip)) {
         links.push(...serverLinks(id, serverLink.target, s.links, shardingLinks));
       }
     });
@@ -415,6 +415,10 @@ function updateHttpServerLinks(data, shardingLinks) {
       }
     });
     return links;
+  }
+
+  function showServerLinks(ip) {
+    return hiddenMemberLinkViews.find(s => s.includes(ip)) ? false : true;
   }
 }
 
@@ -497,7 +501,6 @@ function memberNumber(d) {
 
 function clickCircle(d) {
   if (d.data.type.indexOf('member') >= 0) {
-    //sendWebSocketRequest(d.data.name);
     toggleMemberLinkView(d);
   } else if (d.data.type == 'entity') {
     traceEntityId = d.data.name == traceEntityId ? '' : d.data.name;
