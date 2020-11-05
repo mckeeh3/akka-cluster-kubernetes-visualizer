@@ -60,7 +60,8 @@ const gHttpServerLink = g.append('g')
   .attr('stroke-opacity', '0.4');
 
 const gHttpClientLink = g.append('g')
-  .attr('class', 'http-client-link');
+  .attr('class', 'http-client-link')
+  .attr('stroke-opacity', '0.4');
 
 const gLink = g.append('g')
   .attr('class', 'links')
@@ -264,14 +265,14 @@ function updateHttpServerView(data) {
   updateHttpNodeView(servers);
 
   function serverData(data) {
-    const members = [];
+    const nodes = [];
 
     const x = grid - width / 2;
     data.forEach((n, i) => {
       const y = grid + i * (grid + margin) - height / 2;
-      members.push({ x: x, y: y, ip: n.server.ip, id: n.server.id, messageCount: n.messageCount.toLocaleString(), active: true });
+      nodes.push({ x: x, y: y, ip: n.server.ip, id: n.server.id, messageCount: n.messageCount.toLocaleString(), active: true });
     });
-    return members;
+    return nodes;
   }
 }
 
@@ -346,8 +347,95 @@ function updateHttpNodeView(nodes) {
     .remove();
 }
 
-function updateHttpClientLinks(data, links) {
-  console.log('TODO');
+function updateHttpClientLinks(data, shardingLinks) {
+  const links = linksDeDup(clientsLinks(data, shardingLinks));
+
+  const t1 = d3.transition()
+    .duration(750);
+
+  const t2 = d3.transition()
+    .delay(750)
+    .duration(750);
+
+  const t3 = d3.transition()
+    .delay(1500)
+    .duration(750);
+
+  const link = gHttpClientLink.selectAll('path.http-client')
+    .data(links, d => d.source.id + '-' + d.target.id);
+
+  const linkEnter = link.enter().append('path')
+    .attr('id', function (d) { 
+                       return d.source.id + '-' + d.target.id; })
+    .attr('class', d => 'http-client http-client-id-' + d.source.id)
+    .attr('stroke', d => d3.schemeSet3[Number(d.source.id) % d3.schemeSet3.length])
+    .style('opacity', 0.000001)
+//    .attr('d', d3.linkRadial()
+//                 .angle(d => d.x)
+//                 .radius(d => d.y));
+    .attr("d", d3.linkHorizontal()
+              .x(d => d.x)
+              .y(d => d.y));
+
+  link.transition(t2)
+    .style('opacity', 1.0)
+//    .attr('d', d3.linkRadial()
+//                 .angle(d => d.x)
+//                 .radius(d => d.y));
+    .attr("d", d3.linkHorizontal()
+              .x(d => d.x)
+              .y(d => d.y));
+
+  linkEnter.transition(t3)
+    .style('opacity', 1.0);
+
+  link.exit()
+    .transition(t1)
+    .style('opacity', 0.000001)
+    .remove();
+
+  function clientsLinks(data, shardingLinks) {
+    const links = [];
+    const x = width / 2 - (grid + widthId + margin + widthIp + margin + widthCount);
+    data.forEach((c, i) => {
+      const id = c.client.id;
+      const y = (grid + grid / 2 + i * (grid + margin)) - height / 2;
+      //const angle = Math.atan2(x, y);
+      //const radius = Math.sqrt(x * x + y * y);
+      //const clientLink = { x: angle, y: radius };
+      const clientLink = { x: x, y: y };
+      links.push(...clientLinks(id, clientLink, c.links, shardingLinks));
+    });
+    return links;
+  }
+
+  function clientLinks(sourceId, source, clientLinks, shardingLinks) {
+    const links = [];
+
+    clientLinks.forEach(l => {
+      const serverId = l.server.id;
+      const serverIp = l.server.ip;
+      const serverLink = shardingLinks.find(l => l.target.data.name.includes(serverIp));
+      if (serverLink) {
+        const targetX = serverLink.target.y * Math.sin(serverLink.target.x);
+        const targetY = 0 - serverLink.target.y * Math.cos(serverLink.target.x);
+        links.push({ source: { id: sourceId, x: source.x, y: source.y },
+                     target: { id: serverId, x: targetX, y: targetY } });
+      }
+    });
+    return links;
+  }
+
+  function linksDeDup(links) {
+    return links.reduce((a, c) => {
+      const x = a.find(l => l.source.id + '-' + l.target.id === c.source.id + '-' + c.target.id);
+      if (x) {
+        return a;
+      } else {
+        return a.concat([c]);
+      }
+    }, []);
+  }
 }
 
 function updateHttpServerLinks(data, shardingLinks) {
@@ -370,7 +458,7 @@ function updateHttpServerLinks(data, shardingLinks) {
   const linkEnter = link.enter().append('path')
     .attr('id', function (d) { 
                        return d.source.id + '-' + d.target.id; })
-    .attr('class', d => 'http-server color-' + d.source.id)
+    .attr('class', d => 'http-server http-server-id-' + d.source.id)
     .attr('stroke', d => d3.schemeSet3[Number(d.source.id) % d3.schemeSet3.length])
     .style('opacity', 0.000001)
     .attr('d', d3.linkRadial()
