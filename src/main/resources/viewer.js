@@ -31,7 +31,7 @@ function sendWebSocketRequest(request) {
 const chartDiv = document.getElementById('chart');
 const width = chartDiv.clientWidth;
 const height = chartDiv.clientHeight;
-const radius = math.min(width, height) / 2;
+const radius = Math.min(width, height) / 2;
 const tree = d3.tree().size([2 * Math.PI, radius - 75]);
 
 const grid = Math.min(width, height) / 60;
