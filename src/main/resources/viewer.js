@@ -34,6 +34,14 @@ const height = chartDiv.clientHeight;
 const radius = height / 2;
 const tree = d3.tree().size([2 * Math.PI, radius - 75]);
 
+const grid = Math.min(width, height) / 60;
+const margin = grid * 0.1;
+const widthId = grid * 1.5;
+const widthIp = grid * 5;
+const widthCount = grid * 4;
+
+const messageCountLast = { count: 0, time: new Date() };
+
 const svg = d3.select('svg')
   .style('width', width)
   .style('height', height)
@@ -75,11 +83,8 @@ const gNode = g.append('g')
   .attr('stroke-linejoin', 'round')
   .attr('stroke-width', 3);
 
-const grid = Math.min(width, height) / 60;
-const margin = grid * 0.1;
-const widthId = grid * 1.5;
-const widthIp = grid * 5;
-const widthCount = grid * 4;
+const gStatistics = g.append('g')
+  .attr('class', 'statistics')
 
 sendWebSocketRequest();
 setInterval(sendWebSocketRequest, 5000);
@@ -91,7 +96,8 @@ function update(data) {
   const shardingData = tree(d3.hierarchy(data.tree));
 
   updateHttpClientLinks(data.clientActivities, shardingData.links());
-  updateHttpServerLinks(data.serverActivities, shardingData.links())
+  updateHttpServerLinks(data.serverActivities, shardingData.links());
+  updateStatistics(data, shardingData.links());
 
   updateCropCircle(shardingData);
 }
@@ -261,7 +267,7 @@ function updateHttpClientView(data) {
 function updateHttpServerView(data) {
   const servers = gServers.selectAll('g')
     .data(serverData(data));
-  
+ 
   updateHttpNodeView(servers);
 
   function serverData(data) {
@@ -495,6 +501,77 @@ function updateHttpServerLinks(data, shardingLinks) {
     });
     return links;
   }
+}
+
+function updateStatistics(data, shardingDataLinks) {
+  const bgColor = 'rgba(255, 255, 255, 0.1)';
+  const txColor = '#FFF';
+  const entityCount = shardingDataLinks.reduce((a, c) => a + (c.target.data.type == 'entity' ? 1 : 0), 0);
+  const messageCount = data.serverActivities.reduce((a, c) => a + c.messageCount, 0);
+  const messageCountDelta = messageCount - messageCountLast.count;
+  const timeDeltaSeconds = Math.round((new Date() - messageCountLast.time) / 1000);
+  const messageRatePerSecond = Math.round(messageCountDelta / timeDeltaSeconds);
+
+  messageCountLast.count = messageCount;
+  messageCountLast.time = new Date();
+
+  console.log(entityCount, messageRatePerSecond);
+
+  const x = grid - width / 2;
+  const y = height / 2 - grid - 3 * (grid + margin);
+  const widthLabel = grid * 6;
+  const widthValue = grid * 5;
+  const labelsValues = [];
+
+  if (entityCount > 0) {
+    labelsValues.push({ x: x, y: y, label: 'Entity count', value: entityCount.toLocaleString() });
+    labelsValues.push({ x: x, y: y + grid + margin, label: 'Message count', value: messageCount.toLocaleString() });
+    labelsValues.push({ x: x, y: y + 2 * (grid + margin), label: 'Message rate/s', value: messageRatePerSecond.toLocaleString() });
+  }
+
+  const nodes = gStatistics.selectAll('g')
+    .data(labelsValues);
+ 
+  const nodesEnter = nodes.enter().append('g')
+    .attr('cursor', 'pointer')
+    .on('click', clickMember);
+
+  nodesEnter.append('rect')
+    .attr('x', d => d.x)
+    .attr('y', d => d.y)
+    .attr('width', widthLabel)
+    .attr('height', grid)
+    .style('fill', bgColor);
+
+  nodesEnter.append('text')
+    .attr('x', d => d.x + margin)
+    .attr('y', d => d.y + grid - margin)
+    .attr('text-anchor', 'start')
+    .style('font-size', grid - margin * 2.5)
+    .style('fill', txColor)
+    .text(d => d.label);
+
+  nodesEnter.append('rect')
+    .attr('x', d => d.x + widthLabel + margin)
+    .attr('y', d => d.y)
+    .attr('width', widthValue)
+    .attr('height', grid)
+    .style('fill', bgColor);
+
+  nodesEnter.append('text')
+    .attr('x', d => d.x + widthLabel + widthValue - margin)
+    .attr('y', d => d.y + grid - margin)
+    .attr('text-anchor', 'end')
+    .attr('class', 'statistics')
+    .style('font-size', grid - margin * 2.5)
+    .style('fill', txColor)
+    .text(d => d.value);
+
+  nodes.select('text.statistics')
+    .text(d => d.value);
+
+  nodes.exit()
+    .remove();
 }
 
 function showServerLinks(ip) {
