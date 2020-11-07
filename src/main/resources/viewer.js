@@ -297,8 +297,8 @@ function updateHttpNodeView(nodes) {
     .style('fill', d => d.active ? bgColor : '#555');
 
   nodesEnter.append('text')
-    .attr('x', d => d.x + widthId - margin)
-    .attr('y', d => d.y + grid - margin)
+    .attr('x', d => d.x + widthId - margin * 2)
+    .attr('y', d => d.y + grid - margin * 2)
     .attr('text-anchor', 'end')
     .attr('class', 'id')
     .style('font-size', grid - margin * 2.5)
@@ -313,8 +313,8 @@ function updateHttpNodeView(nodes) {
     .style('fill', d => d.active ? bgColor : '#555');
 
   nodesEnter.append('text')
-    .attr('x', d => d.x + widthId + margin + widthIp - margin)
-    .attr('y', d => d.y + grid - margin)
+    .attr('x', d => d.x + widthId + margin + widthIp - margin * 2)
+    .attr('y', d => d.y + grid - margin * 2)
     .attr('text-anchor', 'end')
     .attr('class', 'ip')
     .style('font-size', grid - margin * 2.5)
@@ -329,8 +329,8 @@ function updateHttpNodeView(nodes) {
     .style('fill', d => d.active ? bgColor : '#555');
 
   nodesEnter.append('text')
-    .attr('x', d => d.x + widthId + margin + widthIp + margin + widthCount - margin)
-    .attr('y', d => d.y + grid - margin)
+    .attr('x', d => d.x + widthId + margin + widthIp + margin + widthCount - margin * 2)
+    .attr('y', d => d.y + grid - margin * 2)
     .attr('text-anchor', 'end')
     .attr('class', 'messageCount')
     .style('font-size', grid - margin * 2.5)
@@ -515,8 +515,6 @@ function updateStatistics(data, shardingDataLinks) {
   messageCountLast.count = messageCount;
   messageCountLast.time = new Date();
 
-  console.log(entityCount, messageRatePerSecond);
-
   const x = grid - width / 2;
   const y = height / 2 - grid - 3 * (grid + margin);
   const widthLabel = grid * 6;
@@ -544,8 +542,8 @@ function updateStatistics(data, shardingDataLinks) {
     .style('fill', bgColor);
 
   nodesEnter.append('text')
-    .attr('x', d => d.x + margin)
-    .attr('y', d => d.y + grid - margin)
+    .attr('x', d => d.x + margin * 2)
+    .attr('y', d => d.y + grid - margin * 2)
     .attr('text-anchor', 'start')
     .style('font-size', grid - margin * 2.5)
     .style('fill', txColor)
@@ -559,8 +557,8 @@ function updateStatistics(data, shardingDataLinks) {
     .style('fill', bgColor);
 
   nodesEnter.append('text')
-    .attr('x', d => d.x + widthLabel + widthValue - margin)
-    .attr('y', d => d.y + grid - margin)
+    .attr('x', d => d.x + widthLabel + widthValue - margin * 2)
+    .attr('y', d => d.y + grid - margin * 2)
     .attr('text-anchor', 'end')
     .attr('class', 'statistics')
     .style('font-size', grid - margin * 2.5)
