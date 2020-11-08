@@ -35,7 +35,7 @@ const height = chartDiv.clientHeight;
 const radius = Math.min(width, height) / 2;
 const tree = d3.tree().size([2 * Math.PI, radius - 75]);
 
-const grid = Math.min(width, height) / 60;
+const grid = Math.min(width, height) / 50;
 const margin = grid * 0.1;
 const widthId = grid * 1.75;
 const widthIp = grid * 5;
