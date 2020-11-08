@@ -703,11 +703,7 @@ function clickMember(d) {
 }
 
 function serverStopRequestsCleanup(serverList) {
-  if (serverStopRequests.length > 0) {
-    console.log('clean', serverStopRequests);
-  }
   serverStopRequests = serverStopRequests.filter(stop => serverList.findIndex(s => s.server.ip == stop) >= 0);
-  console.log(serverStopRequests);
 }
 
 function isServerActive(ip) {
