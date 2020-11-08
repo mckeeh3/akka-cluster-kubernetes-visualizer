@@ -1,4 +1,5 @@
 var webSocket;
+var jsonResponse;
 
 function sendWebSocketRequest(request) {
   if (webSocket && webSocket.readyState == WebSocket.OPEN) {
@@ -14,8 +15,8 @@ function sendWebSocketRequest(request) {
 
     webSocket.onmessage = function(event) {
       console.log(event);
-      root = JSON.parse(event.data);
-      update(root);
+      jsonResponse = JSON.parse(event.data);
+      update(jsonResponse);
     }
 
     webSocket.onerror = function(error) {
@@ -36,12 +37,12 @@ const tree = d3.tree().size([2 * Math.PI, radius - 75]);
 
 const grid = Math.min(width, height) / 60;
 const margin = grid * 0.1;
-const widthId = grid * 1.5;
+const widthId = grid * 1.75;
 const widthIp = grid * 5;
 const widthCount = grid * 4;
 
 const messageCountLast = { count: 0, time: new Date() };
-let serverStopRequests = [];
+var serverStopRequests = [];
 
 const svg = d3.select('svg')
   .style('width', width)
@@ -266,11 +267,11 @@ function updateHttpClientView(data) {
 }
 
 function updateHttpServerView(data) {
-  serverStopRequestsCleanup(data);
   const servers = gServers.selectAll('g')
     .data(serverData(data));
  
   updateHttpNodeView(servers);
+  serverStopRequestsCleanup(data);
 
   function serverData(data) {
     const nodes = [];
@@ -368,13 +369,13 @@ function updateHttpNodeView(nodes) {
 
   function rectBgColorId(d) {
     const bgColor = 'rgba(255, 255, 255, 0.18)';
-    const bgColorInactive = 'rgba(255, 0, 0, 0.18)';
+    const bgColorInactive = 'rgba(255, 128, 128, 0.5)';
     return d.active ? bgColor : bgColorInactive;
   }
 
   function rectBgColor(d) {
     const bgColor = 'rgba(255, 255, 255, 0.1)';
-    const bgColorInactive = 'rgba(255, 0, 0, 0.1)';
+    const bgColorInactive = 'rgba(255, 128, 128, 0.4)';
     return d.active ? bgColor : bgColorInactive;
   }
 }
@@ -531,6 +532,7 @@ function updateHttpServerLinks(data, shardingLinks) {
 
 function updateStatistics(data, shardingDataLinks) {
   const bgColor = 'rgba(255, 255, 255, 0.1)';
+  const bgColorEntityCount = 'rgba(100, 206, 166, 0.3)';
   const txColor = '#FFF';
   const entityCount = shardingDataLinks.reduce((a, c) => a + (c.target.data.type == 'entity' ? 1 : 0), 0);
   const messageCount = data.serverActivities.reduce((a, c) => a + c.messageCount, 0);
@@ -580,7 +582,7 @@ function updateStatistics(data, shardingDataLinks) {
     .attr('y', d => d.y)
     .attr('width', widthValue)
     .attr('height', grid)
-    .style('fill', bgColor);
+    .style('fill', d => d.y == y ? bgColorEntityCount : bgColor);
 
   nodesEnter.append('text')
     .attr('x', d => d.x + widthLabel + widthValue - margin * 2)
@@ -694,13 +696,17 @@ function clickCircle(d) {
 function clickMember(d) {
   if (d.isServer) {
     serverStopRequests.push(d.ip);
+    update(jsonResponse);
     const member = `akka://cluster@${d.ip}:25520`;
     sendWebSocketRequest(member);
   }
 }
 
 function serverStopRequestsCleanup(serverList) {
-  serverStopRequests = serverStopRequests.filter(stop => serverList.find(s => s.server.ip == stop) >= 0);
+  if (serverStopRequests.length > 0) {
+    console.log('clean', serverStopRequests);
+  }
+  serverStopRequests = serverStopRequests.filter(stop => serverList.findIndex(s => s.server.ip == stop) >= 0);
   console.log(serverStopRequests);
 }
 
@@ -719,6 +725,7 @@ function toggleMemberLinkView(d) {
   }
 }
 
+// TODO remove keyed entity trace
 let traceEntityIdNew = '';
 let traceEntityId = '';
 let traceShardId = '';
