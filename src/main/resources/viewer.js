@@ -41,6 +41,7 @@ const widthIp = grid * 5;
 const widthCount = grid * 4;
 
 const messageCountLast = { count: 0, time: new Date() };
+let serverStopRequests = [];
 
 const svg = d3.select('svg')
   .style('width', width)
@@ -258,13 +259,14 @@ function updateHttpClientView(data) {
     const x = width / 2 - (grid + widthId + margin + widthIp + margin + widthCount);
     data.forEach((n, i) => {
       const y = grid + i * (grid + margin) - height / 2;
-      nodes.push({ x: x, y: y, ip: n.client.ip, id: n.client.id, messageCount: n.messageCount.toLocaleString(), active: true });
+      nodes.push({ x: x, y: y, ip: n.client.ip, id: n.client.id, messageCount: n.messageCount.toLocaleString(), active: true, isServer: false });
     });
     return nodes;
   }
 }
 
 function updateHttpServerView(data) {
+  serverStopRequestsCleanup(data);
   const servers = gServers.selectAll('g')
     .data(serverData(data));
  
@@ -276,14 +278,17 @@ function updateHttpServerView(data) {
     const x = grid - width / 2;
     data.forEach((n, i) => {
       const y = grid + i * (grid + margin) - height / 2;
-      nodes.push({ x: x, y: y, ip: n.server.ip, id: n.server.id, messageCount: n.messageCount.toLocaleString(), active: true });
+      const id = n.server.id;
+      const ip = n.server.ip;
+      const mc = n.messageCount.toLocaleString();
+      const active = isServerActive(ip);
+      nodes.push({ x: x, y: y, ip: ip, id: id, messageCount: mc, active: active, isServer: true });
     });
     return nodes;
   }
 }
 
 function updateHttpNodeView(nodes) {
-  const bgColor = 'rgba(255, 255, 255, 0.1)';
   const txColor = '#FFF';
   const nodesEnter = nodes.enter().append('g')
     .attr('cursor', 'pointer')
@@ -294,7 +299,8 @@ function updateHttpNodeView(nodes) {
     .attr('y', d => d.y)
     .attr('width', widthId)
     .attr('height', grid)
-    .style('fill', d => d.active ? bgColor : '#555');
+    .attr('class', 'id')
+    .style('fill', rectBgColorId);
 
   nodesEnter.append('text')
     .attr('x', d => d.x + widthId - margin * 2)
@@ -310,7 +316,8 @@ function updateHttpNodeView(nodes) {
     .attr('y', d => d.y)
     .attr('width', widthIp)
     .attr('height', grid)
-    .style('fill', d => d.active ? bgColor : '#555');
+    .attr('class', 'ip')
+    .style('fill', rectBgColor);
 
   nodesEnter.append('text')
     .attr('x', d => d.x + widthId + margin + widthIp - margin * 2)
@@ -326,7 +333,8 @@ function updateHttpNodeView(nodes) {
     .attr('y', d => d.y)
     .attr('width', widthCount)
     .attr('height', grid)
-    .style('fill', d => d.active ? bgColor : '#555');
+    .attr('class', 'messageCount')
+    .style('fill', rectBgColor);
 
   nodesEnter.append('text')
     .attr('x', d => d.x + widthId + margin + widthIp + margin + widthCount - margin * 2)
@@ -337,8 +345,14 @@ function updateHttpNodeView(nodes) {
     .style('fill', txColor)
     .text(d => d.messageCount);
 
-  nodes.select('rect')
-    .style('fill', d => d.active ? bgColor : '#555');
+  nodes.select('rect.id')
+    .style('fill', rectBgColorId);
+
+  nodes.select('rect.ip')
+    .style('fill', rectBgColor);
+
+  nodes.select('rect.messageCount')
+    .style('fill', rectBgColor);
 
   nodes.select('text.id')
     .text(d => d.id);
@@ -351,6 +365,18 @@ function updateHttpNodeView(nodes) {
 
   nodes.exit()
     .remove();
+
+  function rectBgColorId(d) {
+    const bgColor = 'rgba(255, 255, 255, 0.18)';
+    const bgColorInactive = 'rgba(255, 0, 0, 0.18)';
+    return d.active ? bgColor : bgColorInactive;
+  }
+
+  function rectBgColor(d) {
+    const bgColor = 'rgba(255, 255, 255, 0.1)';
+    const bgColorInactive = 'rgba(255, 0, 0, 0.1)';
+    return d.active ? bgColor : bgColorInactive;
+  }
 }
 
 function updateHttpClientLinks(data, shardingLinks) {
@@ -666,8 +692,20 @@ function clickCircle(d) {
 }
 
 function clickMember(d) {
-  const member = `akka://cluster@${d.ip}:25520`;
-  sendWebSocketRequest(member);
+  if (d.isServer) {
+    serverStopRequests.push(d.ip);
+    const member = `akka://cluster@${d.ip}:25520`;
+    sendWebSocketRequest(member);
+  }
+}
+
+function serverStopRequestsCleanup(serverList) {
+  serverStopRequests = serverStopRequests.filter(stop => serverList.find(s => s.server.ip == stop) >= 0);
+  console.log(serverStopRequests);
+}
+
+function isServerActive(ip) {
+  return !serverStopRequests.includes(ip);
 }
 
 const hiddenMemberLinkViews = [];
