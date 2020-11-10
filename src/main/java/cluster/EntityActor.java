@@ -76,7 +76,7 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
   }
 
   private Behavior<Command> onPassivate() {
-    log().info("Stop {}", entityId);
+    log().info("Stop passivate {}", entityId);
     notifyHttpServer("stop", null, null);
     return Behaviors.stopped();
   }

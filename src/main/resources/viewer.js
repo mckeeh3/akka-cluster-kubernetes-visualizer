@@ -149,7 +149,7 @@ function updateCropCircle(root) {
     .attr('class', d => 'node ' + d.data.type)
     .attr('transform', d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`)
     .on('mouseover', function() {
-      d3.select(this).select('text').style('font-size', 24).style('fill', '#FEE1B7');
+      d3.select(this).select('text').style('font-size', 24).style('fill', '#FFF');
     })
     .on('mouseout', function(d) {
       d3.select(this).select('text').style('font-size', 12).style('fill', '#999');
