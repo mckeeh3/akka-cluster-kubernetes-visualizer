@@ -26,7 +26,6 @@ import java.util.stream.StreamSupport;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.slf4j.Logger;
 
@@ -596,7 +595,7 @@ class HttpServer {
     }
 
     String toJson() {
-      ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+      final var ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
       try {
         return ow.writeValueAsString(this);
       } catch (JsonProcessingException e) {
