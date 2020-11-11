@@ -52,7 +52,7 @@ public interface EntityCommand extends CborSerializable {
 
     @Override
     public String toString() {
-      final long responseTime = System.nanoTime() - nsStart;
+      final var responseTime = System.nanoTime() - nsStart;
       return String.format("%s[%,dns, %s, %s, %s, %d]", getClass().getSimpleName(), responseTime, id, value, message, httpStatusCode);
     }
   }
@@ -101,7 +101,7 @@ public interface EntityCommand extends CborSerializable {
 
     @Override
     public String toString() {
-      final long responseTime = System.nanoTime() - nsStart;
+      final var responseTime = System.nanoTime() - nsStart;
       return String.format("%s[%,dns, %s, %s, %s, %d]", getClass().getSimpleName(), responseTime, id, value, message, httpStatusCode);
     }
   }

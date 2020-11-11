@@ -82,8 +82,8 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
   }
 
   private void notifyHttpServer(String action, IpId.Client httpClient, IpId.Server httpServer) {
-    final EntityAction entityAction = new EntityAction(memberId, shardId, entityId, action, httpClient, httpServer);
-    final BroadcastEntityAction broadcastEntityAction = new BroadcastEntityAction(entityAction);
+    final var entityAction = new EntityAction(memberId, shardId, entityId, action, httpClient, httpServer);
+    final var broadcastEntityAction = new BroadcastEntityAction(entityAction);
     httpServerActorRef.tell(broadcastEntityAction);
   }
 

@@ -8,6 +8,7 @@ import static akka.http.javadsl.server.Directives.handleWebSocketMessages;
 import static akka.http.javadsl.server.Directives.onSuccess;
 import static akka.http.javadsl.server.Directives.path;
 import static akka.http.javadsl.server.Directives.post;
+
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -18,22 +19,21 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+
 import org.slf4j.Logger;
+
 import akka.NotUsed;
 import akka.actor.typed.ActorSystem;
-import akka.cluster.ClusterEvent;
-import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
-import akka.cluster.sharding.typed.javadsl.EntityRef;
 import akka.cluster.typed.Cluster;
 import akka.cluster.typed.Leave;
 import akka.http.javadsl.Http;
@@ -110,8 +110,8 @@ class HttpServer {
   }
 
   private CompletionStage<EntityActor.ChangeValueAck> submitChangeValue(EntityActor.ChangeValue changeValue) {
-    String entityId = changeValue.id.id;
-    EntityRef<EntityActor.Command> entityRef = clusterSharding.entityRefFor(EntityActor.entityTypeKey, entityId);
+    final var entityId = changeValue.id.id;
+    final var entityRef = clusterSharding.entityRefFor(EntityActor.entityTypeKey, entityId);
     return entityRef.ask(changeValue::replyTo, Duration.ofSeconds(30))
         .handle((reply, e) -> {
           if (reply != null) {
@@ -139,8 +139,8 @@ class HttpServer {
   }
 
   private CompletionStage<EntityActor.GetValueAck> submitGetValue(EntityActor.GetValue getValue) {
-    String entityId = getValue.id.id;
-    EntityRef<EntityActor.Command> entityRef = clusterSharding.entityRefFor(EntityActor.entityTypeKey, entityId);
+    final var entityId = getValue.id.id;
+    final var entityRef = clusterSharding.entityRefFor(EntityActor.entityTypeKey, entityId);
     return entityRef.ask(getValue::replyTo, Duration.ofSeconds(30))
         .handle((reply, e) -> {
           if (reply != null) {
@@ -172,7 +172,7 @@ class HttpServer {
   }
 
   private Message handleClientMessage(Message message) {
-    String messageText = message.asTextMessage().getStrictText();
+    final var messageText = message.asTextMessage().getStrictText();
     if (messageText.startsWith("akka://")) {
       handleStopNode(messageText);
     }
@@ -181,7 +181,7 @@ class HttpServer {
 
   private void handleStopNode(String memberAddress) {
     log().info("Stop node {}", memberAddress);
-    final Cluster cluster = Cluster.get(actorSystem);
+    final var cluster = Cluster.get(actorSystem);
     cluster.state().getMembers().forEach(member -> {
       if (memberAddress.equals(member.address().toString())) {
         cluster.manager().tell(Leave.create(member.address()));
@@ -192,29 +192,29 @@ class HttpServer {
   private Message responseAsJson() {
     clearInactiveNodes();
     tree.setMemberType(Cluster.get(actorSystem).selfMember().address().toString(), "httpServer");
-    final ClientResponse clientResponse = new ClientResponse(tree, activitySummary);
+    final var clientResponse = new ClientResponse(tree, activitySummary);
     return TextMessage.create(clientResponse.toJson());
   }
 
   private void clearInactiveNodes() {
-    final Cluster cluster = Cluster.get(actorSystem);
-    final ClusterEvent.CurrentClusterState clusterState = cluster.state();
+    final var cluster = Cluster.get(actorSystem);
+    final var clusterState = cluster.state();
 
-    final Set<Member> unreachable = clusterState.getUnreachable();
+    final var unreachable = clusterState.getUnreachable();
 
-    final List<Member> members = StreamSupport.stream(clusterState.getMembers().spliterator(), false)
+    final var members = StreamSupport.stream(clusterState.getMembers().spliterator(), false)
         .filter(member -> member.status().equals(MemberStatus.up()))
         .filter(member -> !(unreachable.contains(member)))
         .collect(Collectors.toList());
-    final List<String> memberIps = members.stream().map(m -> m.address().getHost().orElse("0.0.0.0")).collect(Collectors.toList());
-    final List<String> memberAddresses = members.stream().map(m -> m.address().toString()).collect(Collectors.toList());
+    final var memberIps = members.stream().map(m -> m.address().getHost().orElse("0.0.0.0")).collect(Collectors.toList());
+    final var memberAddresses = members.stream().map(m -> m.address().toString()).collect(Collectors.toList());
 
     clearInactiveNodesFromTree(memberAddresses);
     clearInactiveNodesFromActivitySummary(memberIps);
   }
 
   private void clearInactiveNodesFromTree(List<String> members) {
-    final int count = tree.children.size();
+    final var count = tree.children.size();
     tree.children.removeIf(node -> !members.contains(node.name));
     if (count != tree.children.size()) {
       log().info("Removed {} members from tree", count - tree.children.size());
@@ -292,17 +292,17 @@ class HttpServer {
 
     void add(String memberId, String shardId, String entityId) {
       removeEntity(entityId);
-      Tree member = find(memberId, "member");
+      var member = find(memberId, "member");
       if (member == null) {
         member = Tree.create(memberId, "member");
         children.add(member);
       }
-      Tree shard = member.find(shardId, "shard");
+      var shard = member.find(shardId, "shard");
       if (shard == null) {
         shard = Tree.create(shardId, "shard");
         member.children.add(shard);
       }
-      Tree entity = shard.find(entityId, "entity");
+      var entity = shard.find(entityId, "entity");
       if (entity == null) {
         entity = Tree.create(entityId, "entity");
         shard.children.add(entity);
@@ -310,11 +310,11 @@ class HttpServer {
     }
 
     void remove(String memberId, String shardId, String entityId) {
-      Tree member = find(memberId, "member");
+      var member = find(memberId, "member");
       if (member != null) {
-        Tree shard = member.find(shardId, "shard");
+        var shard = member.find(shardId, "shard");
         if (shard != null) {
-          Tree entity = shard.find(entityId, "entity");
+          var entity = shard.find(entityId, "entity");
           shard.children.remove(entity);
 
           if (shard.children.isEmpty()) {
@@ -328,9 +328,9 @@ class HttpServer {
     }
 
     void removeEntity(String entityId) {
-      for (Tree member : children) {
-        for (Tree shard : member.children) {
-          for (Tree entity : shard.children) {
+      for (var member : children) {
+        for (var shard : member.children) {
+          for (var entity : shard.children) {
             if (entity.name.equals(entityId)) {
               shard.children.remove(entity);
               break;
@@ -341,18 +341,18 @@ class HttpServer {
     }
 
     void incrementEvents(String memberId, String shardId, String entityId) {
-      Tree entity = find(memberId, shardId, entityId);
+      final var entity = find(memberId, shardId, entityId);
       if (entity != null) {
         entity.events += 1;
       }
     }
 
     private Tree find(String memberId, String shardId, String entityId) {
-      Tree member = find(memberId, "member");
+      final var member = find(memberId, "member");
       if (member != null) {
-        Tree shard = member.find(shardId, "shard");
+        final var shard = member.find(shardId, "shard");
         if (shard != null) {
-          Tree entity = shard.find(entityId, "entity");
+          final var entity = shard.find(entityId, "entity");
           if (entity != null) {
             return entity;
           }
@@ -365,8 +365,8 @@ class HttpServer {
       if (this.name.equals(name) && this.type.contains(type)) {
         return this;
       } else {
-        for (Tree child : children) {
-          Tree found = child.find(name, type);
+        for (var child : children) {
+          final var found = child.find(name, type);
           if (found != null) {
             return found;
           }
@@ -388,7 +388,7 @@ class HttpServer {
     }
 
     void unsetMemberType(String memberId, String type) {
-      Tree member = find(memberId, type);
+      final var member = find(memberId, type);
       if (member != null) {
         member.type = member.type.replaceAll(type, "");
         member.type = member.type.replaceAll(" +", " ");
@@ -439,7 +439,7 @@ class HttpServer {
     public final Map<IpId.Client, ClientActivity> clientActivities = new HashMap<>();
 
     void load(EntityAction entityAction) {
-      final Client client = entityAction.httpClient;
+      final var client = entityAction.httpClient;
       clientActivities.put(client, clientActivities.getOrDefault(client, new ClientActivity(client)).load(entityAction));
     }
 
@@ -508,7 +508,7 @@ class HttpServer {
     public final Map<IpId.Server, ServerActivity> serverActivities = new HashMap<>();
 
     void load(EntityAction entityAction) {
-      final Server server = entityAction.httpServer;
+      final var server = entityAction.httpServer;
       serverActivities.put(server, serverActivities.getOrDefault(server, new ServerActivity(server)).load(entityAction));
     }
 
