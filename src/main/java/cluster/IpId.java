@@ -12,7 +12,7 @@ public abstract class IpId implements Serializable {
   public final String id;
 
   @JsonCreator
-  public IpId(@JsonProperty("ip") String ip, @JsonProperty("id") String id) {
+  protected IpId(@JsonProperty("ip") String ip, @JsonProperty("id") String id) {
     this.ip = ip;
     this.id = id;
   }
@@ -30,7 +30,7 @@ public abstract class IpId implements Serializable {
   }
 
   private static String idOf(String ip) {
-    final String[] ips = ip.split("\\.");
+    final var ips = ip.split("\\.");
 
     if (ips.length < 1) {
       throw new RuntimeException(String.format("Akka host (%s) must be a valid IPv4 address.", ip));

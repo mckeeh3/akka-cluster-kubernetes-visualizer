@@ -74,16 +74,17 @@ class HttpServer {
 
   private void start(String host, int port) {
     Http.get(actorSystem).newServerAt(host, port).bind(route());
-    log().info("HTTP Server started on {}:{}", host, "" + port);
+    log().info("HTTP Server started on {}:{}", host, port);
   }
 
   private Route route() {
+    final String viewerHtml = "viewer.html";
     return concat(
         path("entity-change", this::handleEntityChange),
         path("entity-query", this::handleEntityQuery),
-        path("", () -> getFromResource("viewer.html", ContentTypes.TEXT_HTML_UTF8)),
-        path("viewer", () -> getFromResource("viewer.html", ContentTypes.TEXT_HTML_UTF8)),
-        path("viewer.html", () -> getFromResource("viewer.html", ContentTypes.TEXT_HTML_UTF8)),
+        path("", () -> getFromResource(viewerHtml, ContentTypes.TEXT_HTML_UTF8)),
+        path("viewer", () -> getFromResource(viewerHtml, ContentTypes.TEXT_HTML_UTF8)),
+        path("viewer.html", () -> getFromResource(viewerHtml, ContentTypes.TEXT_HTML_UTF8)),
         path("viewer.js", () -> getFromResource("viewer.js", ContentTypes.APPLICATION_JSON)),
         path("d3.v5.js", () -> getFromResource("d3.v5.js", MediaTypes.APPLICATION_JAVASCRIPT.toContentTypeWithMissingCharset())),
         path("viewer-entities", () -> handleWebSocketMessages(handleClientMessages())),
@@ -143,8 +144,8 @@ class HttpServer {
     return entityRef.ask(getValue::replyTo, Duration.ofSeconds(30))
         .handle((reply, e) -> {
           if (reply != null) {
-            return new EntityActor.GetValueAck(getValue.id, 
-              new Value(reply instanceof EntityActor.GetValueAck 
+            return new EntityActor.GetValueAck(getValue.id,
+              new Value(reply instanceof EntityActor.GetValueAck
                 ? ((EntityActor.GetValueAck) reply).value.value
                 : "Not found"));
           } else {
@@ -428,7 +429,7 @@ class HttpServer {
 
     @Override
     public String toString() {
-      return String.format("%s[%s, %s]", getClass().getSimpleName(), 
+      return String.format("%s[%s, %s]", getClass().getSimpleName(),
         clientActivitySummary.clientActivities.values(), serverActivitySummary.serverActivities.values());
     }
   }
