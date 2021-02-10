@@ -1,5 +1,6 @@
 var webSocket;
 var jsonResponse;
+var svgHasFocus = true;
 
 function sendWebSocketRequest(request) {
   if (webSocket && webSocket.readyState == WebSocket.OPEN) {
@@ -16,7 +17,9 @@ function sendWebSocketRequest(request) {
     webSocket.onmessage = function(event) {
       console.log(event);
       jsonResponse = JSON.parse(event.data);
-      update(jsonResponse);
+      if (svgHasFocus) {
+        update(jsonResponse);
+      }
     }
 
     webSocket.onerror = function(error) {
@@ -269,7 +272,7 @@ function updateHttpClientView(data) {
 function updateHttpServerView(data) {
   const servers = gServers.selectAll('g')
     .data(serverData(data));
- 
+
   updateHttpNodeView(servers);
   serverStopRequestsCleanup(data);
 
@@ -398,8 +401,8 @@ function updateHttpClientLinks(data, shardingLinks) {
     .data(links, d => d.source.id + '-' + d.target.id);
 
   const linkEnter = link.enter().append('path')
-    .attr('id', function (d) { 
-                       return d.source.id + '-' + d.target.id; })
+    .attr('id', function (d) {
+                      return d.source.id + '-' + d.target.id; })
     .attr('class', d => 'http-client http-client-id-' + d.source.id)
     .attr('stroke', d => d3.schemeSet3[Number(d.source.id) % d3.schemeSet3.length])
     .style('opacity', 0.000001)
@@ -443,8 +446,10 @@ function updateHttpClientLinks(data, shardingLinks) {
       if (serverLink && showServerLinks(serverIp)) {
         const targetX = serverLink.target.y * Math.sin(serverLink.target.x);
         const targetY = 0 - serverLink.target.y * Math.cos(serverLink.target.x);
-        links.push({ source: { id: sourceId, x: source.x, y: source.y },
-                     target: { id: serverId, x: targetX, y: targetY } });
+        links.push({
+          source: { id: sourceId, x: source.x, y: source.y },
+          target: { id: serverId, x: targetX, y: targetY }
+        });
       }
     });
     return links;
@@ -480,20 +485,20 @@ function updateHttpServerLinks(data, shardingLinks) {
     .data(links, d => d.source.id + '-' + d.target.id);
 
   const linkEnter = link.enter().append('path')
-    .attr('id', function (d) { 
-                       return d.source.id + '-' + d.target.id; })
+    .attr('id', function (d) {
+                      return d.source.id + '-' + d.target.id; })
     .attr('class', d => 'http-server http-server-id-' + d.source.id)
     .attr('stroke', d => d3.schemeSet3[Number(d.source.id) % d3.schemeSet3.length])
     .style('opacity', 0.000001)
     .attr('d', d3.linkRadial()
-                 .angle(d => d.x)
-                 .radius(d => d.y));
+                .angle(d => d.x)
+                .radius(d => d.y));
 
   link.transition(t2)
     .style('opacity', 1.0)
     .attr('d', d3.linkRadial()
-                 .angle(d => d.x)
-                 .radius(d => d.y));
+                .angle(d => d.x)
+                .radius(d => d.y));
 
   linkEnter.transition(t3)
     .style('opacity', 1.0);
@@ -522,8 +527,10 @@ function updateHttpServerLinks(data, shardingLinks) {
       const entityId = l.entityId;
       const entityLink = shardingLinks.find(l => l.target.data.name == entityId);
       if (entityLink) {
-        links.push({ source: { id: sourceId, x: source.x, y: source.y }, 
-                     target: { id: entityId, x: entityLink.target.x, y: entityLink.target.y } });
+        links.push({
+          source: { id: sourceId, x: source.x, y: source.y },
+          target: { id: entityId, x: entityLink.target.x, y: entityLink.target.y }
+        });
       }
     });
     return links;
@@ -557,7 +564,7 @@ function updateStatistics(data, shardingDataLinks) {
 
   const nodes = gStatistics.selectAll('g')
     .data(labelsValues);
- 
+
   const nodesEnter = nodes.enter().append('g')
     .attr('cursor', 'pointer')
     .on('click', clickMember);
@@ -734,3 +741,14 @@ d3.select('body').on('keydown', function () {
     traceEntityIdNew = '';
   }
 });
+
+const svgElement = document.querySelector('svg');
+svgElement.onfocus = function () { svgFocus(true); };
+svgElement.onblur = function () { svgFocus(false); };
+svgElement.onmouseenter = function () { svgFocus(true); };
+svgElement.onmouseleave = function () { svgFocus(false); };
+
+function svgFocus(hasFocus) {
+  svgHasFocus = hasFocus;
+  console.log('SVG focus', svgHasFocus ? 'on' : 'off');
+}
