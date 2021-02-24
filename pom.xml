@@ -12,13 +12,12 @@
         <git.commit.version>${git.commit.time}.${git.commit.id.abbrev}</git.commit.version>
         <java.version>11</java.version>
         <scala.version>2.13</scala.version>
-        <akka.version>2.6.11</akka.version>
+        <akka.version>2.6.13</akka.version>
         <akka.http.version>10.2.3</akka.http.version>
         <akka.management.version>1.0.9</akka.management.version>
-        <jackson.version>2.12.1</jackson.version>
         <logback.version>1.2.3</logback.version>
-        <junit.jupiter.version>5.7.0</junit.jupiter.version>
-        <junit.platform.version>1.7.0</junit.platform.version>
+        <junit.jupiter.version>5.5.2</junit.jupiter.version>
+        <junit.platform.version>1.5.2</junit.platform.version>
     </properties>
 
     <dependencies>
@@ -129,18 +128,6 @@
             <groupId>com.typesafe.akka</groupId>
             <artifactId>akka-http2-support_2.13</artifactId>
             <version>${akka.http.version}</version>
-        </dependency>
-
-        <!-- Json -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
         </dependency>
 
         <dependency>
