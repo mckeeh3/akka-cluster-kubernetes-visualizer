@@ -93,6 +93,14 @@ visualizer-5b4cf87d4d-hzp7n   1/1     Running   0          3m31s
 visualizer-5b4cf87d4d-pbst2   1/1     Running   0          3m31s
 ~~~
 
+### Scale the Akka cluster
+
+Use the following commands to scale the Akka cluster nodes by adjusting the number of Kubernetes pods.
+
+~~~bash
+kubectl scale --replicas 5 deployment/visualizer -n visualizer
+~~~
+
 ### Enable External Access
 
 Create a load balancer to enable access to the visualizer microservice HTTP endpoint.
