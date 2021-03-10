@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: visualizer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: visualizer
+  name: visualizer
+  namespace: visualizer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: visualizer
+  template:
+    metadata:
+      labels:
+        app: visualizer
+        actorSystemName: visualizer
+    spec:
+      containers:
+        - name: akka-k8-visualizer
+          image: mckeeh3/akka-k8-visualizer:latest
+          imagePullPolicy: Always
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: management
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet:
+              path: "/alive"
+              port: management
+            periodSeconds: 10
+            failureThreshold: 5
+            initialDelaySeconds: 20
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            # akka-management and bootstrap
+            - name: management
+              containerPort: 8558
+              protocol: TCP
+            # akka remoting
+            - name: remoting
+              containerPort: 2552
+              protocol: TCP
+          resources:
+            limits:
+              memory: 8Gi
+            requests:
+              cpu: "0.1"
+              memory: 200Mi
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: REQUIRED_CONTACT_POINT_NR
+              value: "2"
+            - name: simulator_http_server_host
+              value: "simulator-service.simulator.svc.cluster.local"
+            - name: simulator_http_server_port
+              value: "8080"
+            - name: visualizer_http_server_host
+              value: "visualizer-service.visualizer.svc.cluster.local"
+            - name: visualizer_http_server_port
+              value: "8080"
+
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: pod-reader
+  namespace: visualizer
+rules:
+  - apiGroups: [""] # "" indicates the core API group
+    resources: ["pods"]
+    verbs: ["get", "watch", "list"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: read-pods
+  namespace: visualizer
+subjects:
+  # Note the `name` line below. The first default refers to the namespace. The second refers to the service account name.
+  # For instance, `name: system:serviceaccount:myns:default` would refer to the default service account in namespace `myns`
+  - kind: User
+    name: system:serviceaccount:visualizer:default
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
