@@ -10,7 +10,7 @@ Recommend that you create an EKS cluster with two or more Kubernetes nodes.
 Once the Kubernetes cluster has been created you can use the following command to add it to your local Kubernetes configuration settings.
 
 ~~~bash
-aws eks update-kubeconfig --name <your-cluster-name> [--region <your-aws-region>]
+aws eks update-kubeconfig --name <your-cluster-name> --region <your-aws-region>
 ~~~
 
 ## Some Additional CLI Setup
