@@ -37,6 +37,11 @@ You may also want to create an alias for the `kubectl` command, such as `kc`.
 alias kc=kubectl
 ~~~
 
+### Deploy the Kubernetes Dashboard (Optional)
+
+You may want to deploy the Kubernetes dashboard. This is an optional step. To deploy the dashboard follow the
+[Tutorial: Deploy the Kubernetes Dashboard (web UI)](https://docs.aws.amazon.com/eks/latest/userguide/dashboard-tutorial.html).
+
 ### Clone the GitHub Repo
 
 Git clone the project repoisitory.
