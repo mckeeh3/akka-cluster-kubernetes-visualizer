@@ -70,6 +70,20 @@ $ docker tag akka-k8-visualizer <your-docker-username>/akka-k8-visualizer:latest
 $ docker push <your-docker-username>/akka-k8-visualizer
 ~~~
 
+### Create the Kubernetes namespace
+
+Create the Kubernetes namespace. The namespace only needs to be created once.
+
+~~~bash
+kubectl create namespace visualizer
+~~~
+
+Set this namespace as the default for subsequent `kubectl` commands.
+
+~~~bash
+kubectl config set-context --current --namespace=visualizer
+~~~
+
 ### Deploy to Kubernetes
 
 First, edit the `kubernetes/akka-cluster-amazon-eks.yml` file changing the Docker username.
