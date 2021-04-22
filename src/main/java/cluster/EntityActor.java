@@ -45,7 +45,7 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
       .onMessage(Passivate.class, msg -> onPassivate())
       .build();
   }
-  
+
   private Behavior<Command> onChangeValue(ChangeValue changeValue) {
     if (state == null) {
       state = new State(changeValue.id, changeValue.value);
@@ -94,7 +94,7 @@ public class EntityActor extends AbstractBehavior<EntityActor.Command> {
   static String entityId(int nodePort, int id) {
     return String.format("%d-%d", nodePort, id);
   }
-  
+
   public interface Command extends CborSerializable {}
 
   public static class ChangeValue implements Command {
