@@ -96,3 +96,6 @@ kubectl scale deployment/visualizer -n visualizer --replicas 3
 ~~~bash
 kubectl scale deployment/simulator -n simulator --replicas 5
 ~~~
+
+Scaling the number of simulator nodes increases or decreases the rate of HTTP requests and the number of active entities in the visualizer microservice.
+The current entity count, total cluster entity message count, and the current entity message rate is shown in the bottom left of the UI.
