@@ -1,34 +1,34 @@
-var webSocket;
-var jsonResponse;
-var svgHasFocus = true;
+let webSocket;
+let jsonResponse;
+let svgHasFocus = true;
 
 function sendWebSocketRequest(request) {
   if (webSocket && webSocket.readyState == WebSocket.OPEN) {
     webSocket.send(request);
   } else {
     webSocket = new WebSocket('ws://' + location.host + '/viewer-entities');
-    update({ 'clientActivities': [], 'serverActivities': [], 'tree': { 'name': 'cluster', 'type': 'cluster' }});
+    update({ clientActivities: [], serverActivities: [], tree: { name: 'cluster', type: 'cluster' } });
 
-    webSocket.onopen = function(event) {
+    webSocket.onopen = function (event) {
       console.log('WebSocket connected', event);
       webSocket.send(request);
-    }
+    };
 
-    webSocket.onmessage = function(event) {
+    webSocket.onmessage = function (event) {
       console.log(event);
       jsonResponse = JSON.parse(event.data);
       if (svgHasFocus) {
         update(jsonResponse);
       }
-    }
+    };
 
-    webSocket.onerror = function(error) {
+    webSocket.onerror = function (error) {
       console.error('WebSocket error', error);
-    }
+    };
 
-    webSocket.onclose = function(event) {
+    webSocket.onclose = function (event) {
       console.log('WebSocket close', event);
-    }
+    };
   }
 }
 
@@ -45,51 +45,27 @@ const widthIp = grid * 6;
 const widthCount = grid * 4;
 
 const messageCountLast = { count: 0, time: new Date() };
-var serverStopRequests = [];
+let serverStopRequests = [];
 
-const svg = d3.select('svg')
-  .style('width', width)
-  .style('height', height)
-  .style('padding', '0px')
-  .style('box-sizing', 'border-box')
-  .style('font', 'sans-serif');
+const svg = d3.select('svg').style('width', width).style('height', height).style('padding', '0px').style('box-sizing', 'border-box').style('font', 'sans-serif');
 
-svg.append('rect')
-    .attr('width', '100%')
-    .attr('height', '100%')
-    .attr('fill', '#001017');
+svg.append('rect').attr('width', '100%').attr('height', '100%').attr('fill', '#001017');
 
-const g = svg.append('g')
-  .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')');
+const g = svg.append('g').attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')');
 
-const gServers = g.append('g')
-  .attr('class', 'httpServers')
+const gServers = g.append('g').attr('class', 'httpServers');
 
-const gClients = g.append('g')
-  .attr('class', 'httpClients')
+const gClients = g.append('g').attr('class', 'httpClients');
 
-const gHttpServerLink = g.append('g')
-  .attr('class', 'http-server-link')
-  .attr('stroke-opacity', '0.4');
+const gHttpServerLink = g.append('g').attr('class', 'http-server-link').attr('stroke-opacity', '0.4');
 
-const gHttpClientLink = g.append('g')
-  .attr('class', 'http-client-link')
-  .attr('stroke-opacity', '0.4');
+const gHttpClientLink = g.append('g').attr('class', 'http-client-link').attr('stroke-opacity', '0.4');
 
-const gLink = g.append('g')
-  .attr('class', 'links')
-  .attr('fill', 'none')
-  .attr('stroke', '#555')
-  .attr('stroke-opacity', '0.4')
-  .attr('stroke-width', 1.5);
+const gLink = g.append('g').attr('class', 'links').attr('fill', 'none').attr('stroke', '#555').attr('stroke-opacity', '0.4').attr('stroke-width', 1.5);
 
-const gNode = g.append('g')
-  .attr('class', 'nodes')
-  .attr('stroke-linejoin', 'round')
-  .attr('stroke-width', 3);
+const gNode = g.append('g').attr('class', 'nodes').attr('stroke-linejoin', 'round').attr('stroke-width', 3);
 
-const gStatistics = g.append('g')
-  .attr('class', 'statistics')
+const gStatistics = g.append('g').attr('class', 'statistics');
 
 sendWebSocketRequest();
 setInterval(sendWebSocketRequest, 5000);
@@ -108,77 +84,82 @@ function update(data) {
 }
 
 function updateCropCircle(root) {
-  const t1 = d3.transition()
-    .duration(750);
+  const t1 = d3.transition().duration(750);
 
-  const t2 = d3.transition()
-    .delay(750)
-    .duration(750);
+  const t2 = d3.transition().delay(750).duration(750);
 
-  const t3 = d3.transition()
-    .delay(1500)
-    .duration(750);
+  const t3 = d3.transition().delay(1500).duration(750);
 
-  const link = gLink.selectAll('path.link')
-    .data(root.links(), linkId);
+  const link = gLink.selectAll('path.link').data(root.links(), linkId);
 
-  const linkEnter = link.enter().append('path')
+  const linkEnter = link
+    .enter()
+    .append('path')
     .attr('id', linkId)
-    .attr('class', d => 'link ' + d.source.data.type)
+    .attr('class', (d) => 'link ' + d.source.data.type)
     .style('opacity', 0.000001)
-    .attr('d', d3.linkRadial()
-                 .angle(d => d.x)
-                 .radius(d => d.y));
+    .attr(
+      'd',
+      d3
+        .linkRadial()
+        .angle((d) => d.x)
+        .radius((d) => d.y)
+    );
 
-  link.transition(t2)
+  link
+    .transition(t2)
     .style('opacity', 1.0)
-    .attr('d', d3.linkRadial()
-                 .angle(d => d.x)
-                 .radius(d => d.y));
+    .attr(
+      'd',
+      d3
+        .linkRadial()
+        .angle((d) => d.x)
+        .radius((d) => d.y)
+    );
 
-  linkEnter.transition(t3)
-    .style('opacity', 1.0);
+  linkEnter.transition(t3).style('opacity', 1.0);
 
-  link.exit()
-    .transition(t1)
-    .style('opacity', 0.000001)
-    .remove();
+  link.exit().transition(t1).style('opacity', 0.000001).remove();
 
-  const node = gNode.selectAll('g')
-    .data(root.descendants(), nodeId);
+  const node = gNode.selectAll('g').data(root.descendants(), nodeId);
 
-  const nodeEnter = node.enter().append('g')
+  const nodeEnter = node
+    .enter()
+    .append('g')
     .attr('id', nodeId)
-    .attr('class', d => 'node ' + d.data.type)
-    .attr('transform', d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`)
-    .on('mouseover', function() {
+    .attr('class', (d) => 'node ' + d.data.type)
+    .attr('transform', (d) => `rotate(${(d.x * 180) / Math.PI - 90}) translate(${d.y},0)`)
+    .on('mouseover', function () {
       d3.select(this).select('text').style('font-size', 24).style('fill', '#FFF');
     })
-    .on('mouseout', function(d) {
+    .on('mouseout', function (d) {
       d3.select(this).select('text').style('font-size', 12).style('fill', '#999');
     });
 
-  nodeEnter.append('circle')
-    .attr('class', d => d.data.type)
+  nodeEnter
+    .append('circle')
+    .attr('class', (d) => d.data.type)
     .attr('fill', circleColor)
     .attr('r', circleRadius)
     .attr('cursor', 'pointer')
     .on('click', clickCircle)
     .style('opacity', 0.000001);
 
-  nodeEnter.append('text')
+  nodeEnter
+    .append('text')
     .attr('dy', '0.31em')
     .attr('x', labelOffsetX)
-    .attr('text-anchor', d => d.x < Math.PI === !d.children ? 'start' : 'end')
-    .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
+    .attr('text-anchor', (d) => (d.x < Math.PI === !d.children ? 'start' : 'end'))
+    .attr('transform', (d) => (d.x >= Math.PI ? 'rotate(180)' : null))
     .style('opacity', 0.000001)
-    .text(d => d.data.name);
+    .text((d) => d.data.name);
 
-  nodeEnter.filter(d => d.data.type.includes('member'))
+  nodeEnter
+    .filter((d) => d.data.type.includes('member'))
     .append('text')
     .attr('class', 'member')
     .attr('dy', '0.31em')
-    .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
+    .attr('transform', (d) => (d.x >= Math.PI ? 'rotate(180)' : null))
     .attr('cursor', 'pointer')
     .attr('text-anchor', 'middle')
     .on('click', clickCircle)
@@ -187,73 +168,41 @@ function updateCropCircle(root) {
     .style('opacity', 0.000001)
     .text(memberNumber);
 
-  nodeEnter.append('title')
-    .text(d => d.data.type);
+  nodeEnter.append('title').text((d) => d.data.type);
 
-  node.transition(t2)
-    .attr('transform', d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`)
+  node
+    .transition(t2)
+    .attr('transform', (d) => `rotate(${(d.x * 180) / Math.PI - 90}) translate(${d.y},0)`)
     .select('circle.entity')
-      .attr('r', circleRadius)
-      .style('fill', entityColor)
-      .style('opacity', 1.0);
+    .attr('r', circleRadius)
+    .style('fill', entityColor)
+    .style('opacity', 1.0);
 
-  node.transition(t2)
-    .select('circle.shard')
-      .attr('r', circleRadius)
-      .style('fill', shardColor)
-      .style('opacity', 1.0);
+  node.transition(t2).select('circle.shard').attr('r', circleRadius).style('fill', shardColor).style('opacity', 1.0);
 
-  node.transition(t2)
-    .select('circle.member')
-      .attr('r', circleRadius)
-      .style('fill', circleColor)
-      .style('opacity', 1.0);
+  node.transition(t2).select('circle.member').attr('r', circleRadius).style('fill', circleColor).style('opacity', 1.0);
 
-  node.transition(t2)
-    .select('text')
-      .style('opacity', 1.0);
+  node.transition(t2).select('text').style('opacity', 1.0);
 
-  node.transition(t2)
-    .select('text.member')
-      .style('opacity', 1.0);
+  node.transition(t2).select('text.member').style('opacity', 1.0);
 
-  nodeEnter.transition(t3)
-    .select('circle')
-      .style('opacity', 1.0);
+  nodeEnter.transition(t3).select('circle').style('opacity', 1.0);
 
-  nodeEnter.transition(t3)
-    .select('text')
-      .style('opacity', 1.0);
+  nodeEnter.transition(t3).select('text').style('opacity', 1.0);
 
-  nodeEnter.transition(t3)
-    .select('text.member')
-      .style('opacity', 1.0);
+  nodeEnter.transition(t3).select('text.member').style('opacity', 1.0);
 
-  node.exit()
-    .transition(t1)
-    .select('circle')
-      .attr('r', circleRadiusExit)
-      .style('opacity', 0.000001)
-      .style('fill', 'red');
+  node.exit().transition(t1).select('circle').attr('r', circleRadiusExit).style('opacity', 0.000001).style('fill', 'red');
 
-  node.exit()
-    .transition(t1)
-    .select('text')
-      .style('opacity', 0.000001);
+  node.exit().transition(t1).select('text').style('opacity', 0.000001);
 
-  node.exit()
-    .transition(t1)
-    .select('text.member')
-      .style('opacity', 0.000001);
+  node.exit().transition(t1).select('text.member').style('opacity', 0.000001);
 
-  node.exit()
-    .transition(t1)
-    .remove();
+  node.exit().transition(t1).remove();
 }
 
 function updateHttpClientView(data) {
-  const clients = gClients.selectAll('g')
-    .data(clientData(data));
+  const clients = gClients.selectAll('g').data(clientData(data));
 
   updateHttpNodeView(clients);
 
@@ -270,8 +219,7 @@ function updateHttpClientView(data) {
 }
 
 function updateHttpServerView(data) {
-  const servers = gServers.selectAll('g')
-    .data(serverData(data));
+  const servers = gServers.selectAll('g').data(serverData(data));
 
   updateHttpNodeView(servers);
   serverStopRequestsCleanup(data);
@@ -294,81 +242,78 @@ function updateHttpServerView(data) {
 
 function updateHttpNodeView(nodes) {
   const txColor = '#FFF';
-  const nodesEnter = nodes.enter().append('g')
-    .attr('cursor', 'pointer')
-    .on('click', clickMember);
+  const nodesEnter = nodes.enter().append('g').attr('cursor', 'pointer').on('click', clickMember);
 
-  nodesEnter.append('rect')
-    .attr('x', d => d.x)
-    .attr('y', d => d.y)
+  nodesEnter
+    .append('rect')
+    .attr('x', (d) => d.x)
+    .attr('y', (d) => d.y)
     .attr('width', widthId)
     .attr('height', grid)
     .attr('class', 'id')
     .style('fill', rectBgColorId);
 
-  nodesEnter.append('text')
-    .attr('x', d => d.x + widthId - margin * 2)
-    .attr('y', d => d.y + grid - margin * 2)
+  nodesEnter
+    .append('text')
+    .attr('x', (d) => d.x + widthId - margin * 2)
+    .attr('y', (d) => d.y + grid - margin * 2)
     .attr('text-anchor', 'end')
     .attr('class', 'id')
     .style('font-size', grid - margin * 2.5)
     .style('fill', txColor)
-    .text(d => d.id);
+    .text((d) => d.id);
 
-  nodesEnter.append('rect')
-    .attr('x', d => d.x + widthId + margin)
-    .attr('y', d => d.y)
+  nodesEnter
+    .append('rect')
+    .attr('x', (d) => d.x + widthId + margin)
+    .attr('y', (d) => d.y)
     .attr('width', widthIp)
     .attr('height', grid)
     .attr('class', 'ip')
     .style('fill', rectBgColor);
 
-  nodesEnter.append('text')
-    .attr('x', d => d.x + widthId + margin + widthIp - margin * 2)
-    .attr('y', d => d.y + grid - margin * 2)
+  nodesEnter
+    .append('text')
+    .attr('x', (d) => d.x + widthId + margin + widthIp - margin * 2)
+    .attr('y', (d) => d.y + grid - margin * 2)
     .attr('text-anchor', 'end')
     .attr('class', 'ip')
     .style('font-size', grid - margin * 2.5)
     .style('fill', txColor)
-    .text(d => d.ip);
+    .text((d) => d.ip);
 
-  nodesEnter.append('rect')
-    .attr('x', d => d.x + widthId + margin + widthIp + margin)
-    .attr('y', d => d.y)
+  nodesEnter
+    .append('rect')
+    .attr('x', (d) => d.x + widthId + margin + widthIp + margin)
+    .attr('y', (d) => d.y)
     .attr('width', widthCount)
     .attr('height', grid)
     .attr('class', 'messageCount')
     .style('fill', rectBgColor);
 
-  nodesEnter.append('text')
-    .attr('x', d => d.x + widthId + margin + widthIp + margin + widthCount - margin * 2)
-    .attr('y', d => d.y + grid - margin * 2)
+  nodesEnter
+    .append('text')
+    .attr('x', (d) => d.x + widthId + margin + widthIp + margin + widthCount - margin * 2)
+    .attr('y', (d) => d.y + grid - margin * 2)
     .attr('text-anchor', 'end')
     .attr('class', 'messageCount')
     .style('font-size', grid - margin * 2.5)
     .style('fill', txColor)
-    .text(d => d.messageCount);
+    .text((d) => d.messageCount);
 
-  nodes.select('rect.id')
-    .style('fill', rectBgColorId);
+  nodes.select('rect.id').style('fill', rectBgColorId);
 
-  nodes.select('rect.ip')
-    .style('fill', rectBgColor);
+  nodes.select('rect.ip').style('fill', rectBgColor);
 
-  nodes.select('rect.messageCount')
-    .style('fill', rectBgColor);
+  nodes.select('rect.messageCount').style('fill', rectBgColor);
 
-  nodes.select('text.id')
-    .text(d => d.id);
+  nodes.select('text.id').text((d) => d.id);
 
-  nodes.select('text.ip')
-    .text(d => d.ip);
+  nodes.select('text.ip').text((d) => d.ip);
 
-  nodes.select('text.messageCount')
-    .text(d => d.messageCount);
+  nodes.select('text.messageCount').text((d) => d.messageCount);
 
-  nodes.exit()
-    .remove();
+  nodes.exit().remove();
 
   function rectBgColorId(d) {
     const bgColor = 'rgba(255, 255, 255, 0.18)';
@@ -386,50 +331,52 @@ function updateHttpNodeView(nodes) {
 function updateHttpClientLinks(data, shardingLinks) {
   const links = linksDeDup(clientsLinks(data, shardingLinks));
 
-  const t1 = d3.transition()
-    .duration(750);
+  const t1 = d3.transition().duration(750);
 
-  const t2 = d3.transition()
-    .delay(750)
-    .duration(750);
+  const t2 = d3.transition().delay(750).duration(750);
 
-  const t3 = d3.transition()
-    .delay(1500)
-    .duration(750);
+  const t3 = d3.transition().delay(1500).duration(750);
 
-  const link = gHttpClientLink.selectAll('path.http-client')
-    .data(links, d => d.source.id + '-' + d.target.id);
+  const link = gHttpClientLink.selectAll('path.http-client').data(links, (d) => d.source.id + '-' + d.target.id);
 
-  const linkEnter = link.enter().append('path')
+  const linkEnter = link
+    .enter()
+    .append('path')
     .attr('id', function (d) {
-                      return d.source.id + '-' + d.target.id; })
-    .attr('class', d => 'http-client http-client-id-' + d.source.id)
-    .attr('stroke', d => d3.schemeSet3[Number(d.source.id) % d3.schemeSet3.length])
+      return d.source.id + '-' + d.target.id;
+    })
+    .attr('class', (d) => 'http-client http-client-id-' + d.source.id)
+    .attr('stroke', (d) => d3.schemeSet3[Number(d.source.id) % d3.schemeSet3.length])
     .style('opacity', 0.000001)
-    .attr("d", d3.linkHorizontal()
-              .x(d => d.x)
-              .y(d => d.y));
+    .attr(
+      'd',
+      d3
+        .linkHorizontal()
+        .x((d) => d.x)
+        .y((d) => d.y)
+    );
 
-  link.transition(t2)
+  link
+    .transition(t2)
     .style('opacity', 1.0)
-    .attr("d", d3.linkHorizontal()
-              .x(d => d.x)
-              .y(d => d.y));
+    .attr(
+      'd',
+      d3
+        .linkHorizontal()
+        .x((d) => d.x)
+        .y((d) => d.y)
+    );
 
-  linkEnter.transition(t3)
-    .style('opacity', 1.0);
+  linkEnter.transition(t3).style('opacity', 1.0);
 
-  link.exit()
-    .transition(t1)
-    .style('opacity', 0.000001)
-    .remove();
+  link.exit().transition(t1).style('opacity', 0.000001).remove();
 
   function clientsLinks(data, shardingLinks) {
     const links = [];
     const x = width / 2 - (grid + widthId + margin + widthIp + margin + widthCount);
     data.forEach((c, i) => {
       const id = c.client.id;
-      const y = (grid + grid / 2 + i * (grid + margin)) - height / 2;
+      const y = grid + grid / 2 + i * (grid + margin) - height / 2;
       const clientLink = { x: x, y: y };
       links.push(...clientLinks(id, clientLink, c.links, shardingLinks));
     });
@@ -439,16 +386,16 @@ function updateHttpClientLinks(data, shardingLinks) {
   function clientLinks(sourceId, source, clientLinks, shardingLinks) {
     const links = [];
 
-    clientLinks.forEach(l => {
+    clientLinks.forEach((l) => {
       const serverId = l.server.id;
       const serverIp = l.server.ip;
-      const serverLink = shardingLinks.find(l => l.target.data.name.includes(serverIp));
+      const serverLink = shardingLinks.find((l) => l.target.data.name.includes(serverIp));
       if (serverLink && showServerLinks(serverIp)) {
         const targetX = serverLink.target.y * Math.sin(serverLink.target.x);
         const targetY = 0 - serverLink.target.y * Math.cos(serverLink.target.x);
         links.push({
           source: { id: sourceId, x: source.x, y: source.y },
-          target: { id: serverId, x: targetX, y: targetY }
+          target: { id: serverId, x: targetX, y: targetY },
         });
       }
     });
@@ -457,7 +404,7 @@ function updateHttpClientLinks(data, shardingLinks) {
 
   function linksDeDup(links) {
     return links.reduce((a, c) => {
-      const x = a.find(l => l.source.id + '-' + l.target.id === c.source.id + '-' + c.target.id);
+      const x = a.find((l) => l.source.id + '-' + l.target.id === c.source.id + '-' + c.target.id);
       if (x) {
         return a;
       } else {
@@ -470,50 +417,52 @@ function updateHttpClientLinks(data, shardingLinks) {
 function updateHttpServerLinks(data, shardingLinks) {
   const links = serversLinks(data, shardingLinks);
 
-  const t1 = d3.transition()
-    .duration(750);
+  const t1 = d3.transition().duration(750);
 
-  const t2 = d3.transition()
-    .delay(750)
-    .duration(750);
+  const t2 = d3.transition().delay(750).duration(750);
 
-  const t3 = d3.transition()
-    .delay(1500)
-    .duration(750);
+  const t3 = d3.transition().delay(1500).duration(750);
 
-  const link = gHttpServerLink.selectAll('path.http-server')
-    .data(links, d => d.source.id + '-' + d.target.id);
+  const link = gHttpServerLink.selectAll('path.http-server').data(links, (d) => d.source.id + '-' + d.target.id);
 
-  const linkEnter = link.enter().append('path')
+  const linkEnter = link
+    .enter()
+    .append('path')
     .attr('id', function (d) {
-                      return d.source.id + '-' + d.target.id; })
-    .attr('class', d => 'http-server http-server-id-' + d.source.id)
-    .attr('stroke', d => d3.schemeSet3[Number(d.source.id) % d3.schemeSet3.length])
+      return d.source.id + '-' + d.target.id;
+    })
+    .attr('class', (d) => 'http-server http-server-id-' + d.source.id)
+    .attr('stroke', (d) => d3.schemeSet3[Number(d.source.id) % d3.schemeSet3.length])
     .style('opacity', 0.000001)
-    .attr('d', d3.linkRadial()
-                .angle(d => d.x)
-                .radius(d => d.y));
+    .attr(
+      'd',
+      d3
+        .linkRadial()
+        .angle((d) => d.x)
+        .radius((d) => d.y)
+    );
 
-  link.transition(t2)
+  link
+    .transition(t2)
     .style('opacity', 1.0)
-    .attr('d', d3.linkRadial()
-                .angle(d => d.x)
-                .radius(d => d.y));
+    .attr(
+      'd',
+      d3
+        .linkRadial()
+        .angle((d) => d.x)
+        .radius((d) => d.y)
+    );
 
-  linkEnter.transition(t3)
-    .style('opacity', 1.0);
+  linkEnter.transition(t3).style('opacity', 1.0);
 
-  link.exit()
-    .transition(t1)
-    .style('opacity', 0.000001)
-    .remove();
+  link.exit().transition(t1).style('opacity', 0.000001).remove();
 
   function serversLinks(data, shardingLinks) {
     const links = [];
-    data.forEach(s => {
+    data.forEach((s) => {
       const ip = s.server.ip;
       const id = s.server.id;
-      const serverLink = shardingLinks.find(l => l.target.data.name.includes(ip));
+      const serverLink = shardingLinks.find((l) => l.target.data.name.includes(ip));
       if (serverLink && showServerLinks(ip)) {
         links.push(...serverLinks(id, serverLink.target, s.links, shardingLinks));
       }
@@ -523,13 +472,13 @@ function updateHttpServerLinks(data, shardingLinks) {
 
   function serverLinks(sourceId, source, serverLinks, shardingLinks) {
     const links = [];
-    serverLinks.forEach(l => {
+    serverLinks.forEach((l) => {
       const entityId = l.entityId;
-      const entityLink = shardingLinks.find(l => l.target.data.name == entityId);
+      const entityLink = shardingLinks.find((l) => l.target.data.name == entityId);
       if (entityLink) {
         links.push({
           source: { id: sourceId, x: source.x, y: source.y },
-          target: { id: entityId, x: entityLink.target.x, y: entityLink.target.y }
+          target: { id: entityId, x: entityLink.target.x, y: entityLink.target.y },
         });
       }
     });
@@ -562,53 +511,52 @@ function updateStatistics(data, shardingDataLinks) {
     labelsValues.push({ x: x, y: y + 2 * (grid + margin), label: 'Message rate', value: messageRatePerSecond.toLocaleString() + '/s' });
   }
 
-  const nodes = gStatistics.selectAll('g')
-    .data(labelsValues);
+  const nodes = gStatistics.selectAll('g').data(labelsValues);
 
-  const nodesEnter = nodes.enter().append('g')
-    .attr('cursor', 'pointer')
-    .on('click', clickMember);
+  const nodesEnter = nodes.enter().append('g').attr('cursor', 'pointer').on('click', clickMember);
 
-  nodesEnter.append('rect')
-    .attr('x', d => d.x)
-    .attr('y', d => d.y)
+  nodesEnter
+    .append('rect')
+    .attr('x', (d) => d.x)
+    .attr('y', (d) => d.y)
     .attr('width', widthLabel)
     .attr('height', grid)
     .style('fill', bgColor);
 
-  nodesEnter.append('text')
-    .attr('x', d => d.x + margin * 2)
-    .attr('y', d => d.y + grid - margin * 2)
+  nodesEnter
+    .append('text')
+    .attr('x', (d) => d.x + margin * 2)
+    .attr('y', (d) => d.y + grid - margin * 2)
     .attr('text-anchor', 'start')
     .style('font-size', grid - margin * 2.5)
     .style('fill', txColor)
-    .text(d => d.label);
+    .text((d) => d.label);
 
-  nodesEnter.append('rect')
-    .attr('x', d => d.x + widthLabel + margin)
-    .attr('y', d => d.y)
+  nodesEnter
+    .append('rect')
+    .attr('x', (d) => d.x + widthLabel + margin)
+    .attr('y', (d) => d.y)
     .attr('width', widthValue)
     .attr('height', grid)
-    .style('fill', d => d.y == y ? bgColorEntityCount : bgColor);
+    .style('fill', (d) => (d.y == y ? bgColorEntityCount : bgColor));
 
-  nodesEnter.append('text')
-    .attr('x', d => d.x + widthLabel + widthValue - margin * 2)
-    .attr('y', d => d.y + grid - margin * 2)
+  nodesEnter
+    .append('text')
+    .attr('x', (d) => d.x + widthLabel + widthValue - margin * 2)
+    .attr('y', (d) => d.y + grid - margin * 2)
     .attr('text-anchor', 'end')
     .attr('class', 'statistics')
     .style('font-size', grid - margin * 2.5)
     .style('fill', txColor)
-    .text(d => d.value);
+    .text((d) => d.value);
 
-  nodes.select('text.statistics')
-    .text(d => d.value);
+  nodes.select('text.statistics').text((d) => d.value);
 
-  nodes.exit()
-    .remove();
+  nodes.exit().remove();
 }
 
 function showServerLinks(ip) {
-  return hiddenMemberLinkViews.find(s => s.includes(ip)) ? false : true;
+  return hiddenMemberLinkViews.find((s) => s.includes(ip)) ? false : true;
 }
 
 function linkId(d) {
@@ -710,7 +658,7 @@ function clickMember(d) {
 }
 
 function serverStopRequestsCleanup(serverList) {
-  serverStopRequests = serverStopRequests.filter(stop => serverList.findIndex(s => s.server.ip == stop) >= 0);
+  serverStopRequests = serverStopRequests.filter((stop) => serverList.findIndex((s) => s.server.ip == stop) >= 0);
 }
 
 function isServerActive(ip) {
@@ -734,7 +682,7 @@ let traceEntityId = '';
 let traceShardId = '';
 
 function isTraceEntity(d) {
-  return d.data.name == traceEntityId || !traceEntityId && d.parent.data.name == traceShardId;
+  return d.data.name == traceEntityId || (!traceEntityId && d.parent.data.name == traceShardId);
 }
 
 function isTraceShard(d) {
@@ -751,10 +699,18 @@ d3.select('body').on('keydown', function () {
 });
 
 const svgElement = document.querySelector('svg');
-svgElement.onfocus = function () { svgFocus(true); };
-svgElement.onblur = function () { svgFocus(false); };
-svgElement.onmouseenter = function () { svgFocus(true); };
-svgElement.onmouseleave = function () { svgFocus(false); };
+svgElement.onfocus = function () {
+  svgFocus(true);
+};
+svgElement.onblur = function () {
+  svgFocus(false);
+};
+svgElement.onmouseenter = function () {
+  svgFocus(true);
+};
+svgElement.onmouseleave = function () {
+  svgFocus(false);
+};
 
 function svgFocus(hasFocus) {
   svgHasFocus = hasFocus;
