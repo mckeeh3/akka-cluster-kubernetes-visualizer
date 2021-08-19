@@ -78,7 +78,7 @@ eval $(minikube -p minikube docker-env)
 Build the project, which will create a new Docker image.
 
 ~~~bash
-mvn clean package docker:build
+mvn clean package
 ~~~
 
 Create the Kubernetes namespace. The namespace only needs to be created once.
@@ -148,7 +148,6 @@ $ minikube ip
 In this example the MiniKube IP is:
 
 Try accessing this endpoint using the curl command or from a browser. Use the external port defined for port 8080. In the example above the external port for port 8080 is 32075.
-
 
 
 kubectl expose deployment woe-twin --type=LoadBalancer --name=woe-twin-service
